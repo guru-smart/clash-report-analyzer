@@ -3,13 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clash Result App</title>
+    <title>Clash Report Analyzer</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="firstPage" class="page">
-        <h1>Clash Result Importer</h1>
+    <header>
+        <h1>Clash Report Analyzer</h1>
+    </header>
+
+    <div id="homePage" class="page">
+        <h2>Welcome</h2>
+        <p>Import last week's and current week's Clash CSV results to compare and update comments/solutions.</p>
+        <button id="getStartedButton">Get Started</button>
+    </div>
+
+    <div id="importPage" class="page" style="display: none;">
+        <h2>Import Clash Results</h2>
 
         <div class="import-option">
             <label for="lastWeekFile">Import Last Week's Clash Result (CSV):</label>
@@ -24,7 +34,7 @@
         <button id="processButton">Process Results</button>
     </div>
 
-    <div id="secondPage" class="page">
+    <div id="resultsPage" class="page" style="display: none;">
         <h2>Updated Current Week Results</h2>
         <div id="resultsArea">
             <p class="loading-message">Select files and click Process to see results.</p>
@@ -32,6 +42,10 @@
         <button id="exportButton">Export Updated CSV</button>
         <button id="backButton">Back to Import</button>
     </div>
+
+    <footer>
+        <p>Developed by Guruprasath.</p>
+    </footer>
 
     <script src="script.js"></script>
 
