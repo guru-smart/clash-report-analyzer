@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clash Result App</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .page {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px; /* Increased max-width for results */
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        #secondPage {
+            display: none;
+            text-align: left; /* Align text left for results */
+        }
+
+        h1, h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center; /* Center headings */
+        }
+
+        .import-option {
+            margin-bottom: 20px;
+        }
+
+        .import-option label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .import-option input[type="file"] {
+            display: block;
+            margin: 0 auto;
+        }
+
+        #processButton, #backButton, #exportButton {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            margin: 10px 5px; /* Space around buttons */
+        }
+
+         #backButton {
+             background-color: #6c757d;
+         }
+
+         #exportButton {
+             background-color: #28a745; /* Green color for export */
+             display: none; /* Initially hidden */
+         }
+
+        #processButton:hover {
+            background-color: #0056b3;
+        }
+
+        #backButton:hover {
+             background-color: #5a6268;
+        }
+         #exportButton:hover {
+             background-color: #218838;
+        }
+
+        #resultsArea {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            max-height: 400px; /* Limit height and add scroll */
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            word-break: break-word; /* Prevent long words breaking layout */
+        }
+
+        th {
+            background-color: #f2f2f2;
+            position: sticky; /* Make header sticky when scrolling */
+            top: 0;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+         .loading-message {
+             font-style: italic;
+             color: #555;
+         }
+
+    </style>
+</head>
+<body>
+
+    <div id="firstPage" class="page">
+        <h1>Clash Result Importer</h1>
+
+        <div class="import-option">
+            <label for="lastWeekFile">Import Last Week's Clash Result (CSV):</label>
+            <input type="file" id="lastWeekFile" accept=".csv"> </div>
+
+        <div class="import-option">
+            <label for="currentWeekFile">Import Current Week's Clash Result (CSV):</label>
+            <input type="file" id="currentWeekFile" accept=".csv"> </div>
+
+        <button id="processButton">Process Results</button>
+    </div>
+
+    <div id="secondPage" class="page">
+        <h2>Updated Current Week Results</h2>
+        <div id="resultsArea">
+            <p class="loading-message">Select files and click Process to see results.</p>
+        </div>
+         <button id="exportButton">Export Updated CSV</button>
+        <button id="backButton">Back to Import</button>
+    </div>
+
+    <script>
+        // Get references to the elements
+        const firstPage = document.getElementById('firstPage');
+        const secondPage = document.getElementById('secondPage');
+        const lastWeekInput = document.getElementById('lastWeekFile');
+        const currentWeekInput = document.getElementById('currentWeekFile');
+        const processButton = document.getElementById('processButton');
+        const backButton = document.getElementById('backButton');
+        const exportButton = document.getElementById('exportButton');
+        const resultsArea = document.getElementById('resultsArea'); // Area to show results
+
+        let updatedCurrentWeekData = []; // Variable to hold the processed data for export
+        let currentWeekHeaders = []; // Variable to hold the headers for export
+
+        // --- CSV Parsing Function (More Robust) ---
+        // This function handles fields enclosed in double quotes,
+        // which allows commas and newlines within cell values.
+        function parseCSV(csvText) {
+            const rows = [];
+            const lines = csvText.split(/\r?\n/); // Split lines
+            const delimiter = ',';
+            const quote = '"';
+
+            let headers = [];
+            let isFirstRow = true; // Flag to identify the header row
+
+            for (const line of lines) {
+                if (line.trim() === '') continue; // Skip empty lines
+
+                const values = [];
+                let currentIndex = 0;
+                let inQuotes = false;
+                let cell = '';
+
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+
+                    if (char === quote) {
+                        if (inQuotes && line[i + 1] === quote) {
+                            // Handle escaped double quote ("")
+                            cell += quote;
+                            i++; // Skip the next quote
+                        } else {
+                            // Toggle inQuotes state
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === delimiter && !inQuotes) {
+                        // Found delimiter outside of quotes, cell is complete
+                        values.push(cell.trim()); // Trim whitespace
+                        cell = ''; // Reset cell
+                    } else {
+                        // Add character to current cell
+                        cell += char;
+                    }
+                }
+                // Add the last cell of the line
+                values.push(cell.trim()); // Trim whitespace
+
+                if (isFirstRow) {
+                    headers = values;
+                    isFirstRow = false;
+                     // Basic check if headers seem reasonable
+                     if (headers.length < 2) {
+                          console.warn("CSV parsing might be inaccurate. Header row seems too short.");
+                     }
+                } else {
+                    // Create an object for each data row
+                    const rowObject = {};
+                    // Ensure values array matches headers length, padding with empty strings if short
+                    while(values.length < headers.length) {
+                        values.push('');
+                    }
+                    headers.forEach((header, index) => {
+                        rowObject[header] = values[index] !== undefined ? values[index] : ''; // Map value to header, use empty string if missing
+                    });
+                     // Only add row if it has data fields corresponding to headers
+                    if (Object.keys(rowObject).length === headers.length) {
+                       rows.push(rowObject);
+                    } else {
+                         console.warn("Skipping potentially malformed row:", line);
+                    }
+                }
+            }
+
+            return { headers, data: rows };
+        }
+
+         // --- CSV Formatting Function ---
+         // Ensure this function also handles quoting properly when writing CSV
+        function formatCSV(headers, data) {
+            const rows = [headers.join(',')]; // Start with headers
+
+            data.forEach(row => {
+                const values = headers.map(header => {
+                    const value = row[header] === undefined || row[header] === null ? '' : String(row[header]); // Get value, ensure it's a string
+                    // Quote if value contains comma, double quote, newline, or is empty (sometimes desired for clarity)
+                    // Added check for empty value quoting based on common practice, remove if not desired.
+                    if (/[,"\r\n]/.test(value) || value === '') {
+                        // Escape double quotes by doubling them
+                        const escapedValue = value.replace(/"/g, '""');
+                        return `"${escapedValue}"`;
+                    }
+                    return value;
+                });
+                rows.push(values.join(','));
+            });
+
+            return rows.join('\n');
+        }
+
+
+        // --- Event Listeners ---
+
+        // Listen for file selection (optional, for feedback)
+        lastWeekInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                console.log('Last week file selected:', this.files[0].name);
+            }
+        });
+
+        currentWeekInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                console.log('Current week file selected:', this.files[0].name);
+            }
+        });
+
+        // Listen for the process button click
+        processButton.addEventListener('click', function() {
+            console.log('Process button clicked.');
+
+            const lastWeekFile = lastWeekInput.files[0];
+            const currentWeekFile = currentWeekInput.files[0];
+
+            // Basic validation: Check if both files are selected
+            if (!lastWeekFile || !currentWeekFile) {
+                alert("Please select both last week's and current week's CSV files.");
+                return; // Stop the function if files are missing
+            }
+
+            // --- Navigation ---
+            // Hide the first page and show the second page
+            firstPage.style.display = 'none';
+            secondPage.style.display = 'block'; // Or 'flex'
+
+            // --- File Reading and Processing ---
+            resultsArea.innerHTML = '<p class="loading-message">Reading and processing files...</p>'; // Show a loading message
+            exportButton.style.display = 'none'; // Hide export button initially
+
+            const readerLastWeek = new FileReader();
+            const readerCurrentWeek = new FileReader();
+
+            let lastWeekCsvText = null; // Changed variable name to reflect it's text
+            let currentWeekCsvText = null; // Changed variable name to reflect it's text
+
+            const processDataWhenReady = () => {
+                if (lastWeekCsvText !== null && currentWeekCsvText !== null) { // Check against null
+                    console.log("Both files read. Starting processing...");
+                    performComparisonAndDisplay(lastWeekCsvText, currentWeekCsvText);
+                }
+            };
+
+            readerLastWeek.onload = function(e) {
+                console.log("Last week file loaded.");
+                lastWeekCsvText = e.target.result;
+                processDataWhenReady();
+            };
+
+            readerCurrentWeek.onload = function(e) {
+                 console.log("Current week file loaded.");
+                currentWeekCsvText = e.target.result;
+                processDataWhenReady();
+            };
+
+            readerLastWeek.onerror = readerCurrentWeek.onerror = function() {
+                 resultsArea.innerHTML = '<p style="color: red;">Error reading files.</p>';
+                 console.error("Error reading file:", this.error);
+                 exportButton.style.display = 'none'; // Hide export button on error
+            };
+
+
+            // Read files as text
+            readerLastWeek.readAsText(lastWeekFile);
+            readerCurrentWeek.readAsText(currentWeekFile);
+        });
+
+        // --- Comparison and Display Logic ---
+        function performComparisonAndDisplay(lastWeekCsvText, currentWeekCsvText) {
+            resultsArea.innerHTML = '<p class="loading-message">Parsing and comparing data...</p>';
+
+            // Use the improved parseCSV function
+            const lastWeekParsed = parseCSV(lastWeekCsvText);
+            const currentWeekParsed = parseCSV(currentWeekCsvText);
+
+            const lastWeekHeaders = lastWeekParsed.headers;
+            const lastWeekRows = lastWeekParsed.data;
+
+            currentWeekHeaders = currentWeekParsed.headers; // Store headers in the outer scope variable
+            let currentWeekRows = currentWeekParsed.data; // Use 'let' as we will modify this
+
+
+            // Define columns for matching
+            const matchColumns = [
+                'Set A Element',
+                'Set B Element',
+                'Model A',
+                'Model B',
+                'Category A',
+                'Category B'
+            ];
+
+            // Define columns to transfer
+            const transferColumns = ['Comments', 'Solution'];
+
+
+            // Validate required columns exist in both files
+            const requiredColsLast = [...matchColumns, ...transferColumns];
+            const requiredColsCurrent = [...matchColumns, ...transferColumns]; // Both sets of columns should ideally exist in current week's structure
+
+             const missingInLastWeek = requiredColsLast.filter(col => !lastWeekHeaders.includes(col));
+             // Check if match columns are missing in current week
+             const missingMatchInCurrentWeek = matchColumns.filter(col => !currentWeekHeaders.includes(col));
+             // Check if transfer columns are missing in current week (these are the ones we'll write to)
+             const missingTransferInCurrentWeek = transferColumns.filter(col => !currentWeekHeaders.includes(col));
+
+
+             if (missingInLastWeek.length > 0 || missingMatchInCurrentWeek.length > 0 || missingTransferInCurrentWeek.length > 0) {
+                 let errorMessage = '<p style="color: red;">Missing required columns in files:</p>';
+                 if (missingInLastWeek.length > 0) {
+                      errorMessage += `<p style="color: red;">Last week file missing: ${missingInLastWeek.join(', ')}</p>`;
+                 }
+                  if (missingMatchInCurrentWeek.length > 0) {
+                      errorMessage += `<p style="color: red;">Current week file missing match columns: ${missingMatchInCurrentWeek.join(', ')}</p>`;
+                 }
+                   if (missingTransferInCurrentWeek.length > 0) {
+                      errorMessage += `<p style="color: red;">Current week file missing transfer columns (will be added at the end): ${missingTransferInCurrentWeek.join(', ')}</p>`;
+                      // If transfer columns are missing, add them to headers to ensure they appear in the output
+                      missingTransferInCurrentWeek.forEach(col => {
+                          if (!currentWeekHeaders.includes(col)) {
+                               currentWeekHeaders.push(col);
+                          }
+                      });
+                 }
+                 resultsArea.innerHTML = errorMessage;
+                 // Hide export button if crucial columns are missing
+                 if (missingInLastWeek.length > 0 || missingMatchInCurrentWeek.length > 0) {
+                     exportButton.style.display = 'none';
+                      return; // Stop processing if match columns are missing
+                 }
+                 // Continue if only transfer columns are missing (they will be added)
+             }
+
+
+            // Build a lookup map from last week's data for quick access
+            // Key: Concatenation of values from matchColumns
+            // Value: An object containing values for transferColumns from that row
+            const lastWeekLookup = new Map();
+            lastWeekRows.forEach(row => {
+                // Create a key from the specified columns, handling potential undefined values
+                const key = matchColumns.map(col => row[col] === undefined || row[col] === null ? '' : String(row[col])).join(' murderers'); // Use a unique delimiter
+
+                const transferValues = {};
+                transferColumns.forEach(col => {
+                    transferValues[col] = row[col] === undefined || row[col] === null ? '' : String(row[col]); // Store transfer values, ensure string
+                });
+
+                lastWeekLookup.set(key, transferValues);
+            });
+
+            console.log(`Built lookup map with ${lastWeekLookup.size} entries from last week data.`);
+            console.log(`Processing ${currentWeekRows.length} rows from current week data.`);
+
+            // Iterate through current week data and update transfer columns
+            updatedCurrentWeekData = currentWeekRows.map(currentRow => {
+                 // Create a key for the current row
+                const key = matchColumns.map(col => currentRow[col] === undefined || currentRow[col] === null ? '' : String(currentRow[col])).join(' murderers');
+
+                const oldTransferValues = lastWeekLookup.get(key); // Get transfer values from last week lookup
+
+                // If a matching row was found in last week, update the transfer columns
+                if (oldTransferValues !== undefined) { // Check if key exists (value is the transferValues object)
+                     transferColumns.forEach(col => {
+                          currentRow[col] = oldTransferValues[col]; // Update the column in the current row object
+                     });
+                } else {
+                    // If no match, ensure the transfer columns exist and are empty strings if they were undefined
+                     transferColumns.forEach(col => {
+                          if (currentRow[col] === undefined) {
+                              currentRow[col] = '';
+                          }
+                     });
+                }
+                return currentRow; // Return the potentially updated row
+            });
+
+            console.log("Comparison complete. Data updated.");
+
+            // --- Display Results ---
+            // Use the potentially modified currentWeekHeaders for display
+            displayDataInTable(currentWeekHeaders, updatedCurrentWeekData);
+
+            // Show the export button
+            exportButton.style.display = 'inline-block';
+        }
+
+        // --- Function to display data in a table ---
+        function displayDataInTable(headers, data) {
+            if (data.length === 0) {
+                resultsArea.innerHTML = '<p>No data rows to display.</p>';
+                return;
+            }
+
+            let tableHTML = '<table><thead><tr>';
+            // Add table headers
+            headers.forEach(header => {
+                tableHTML += `<th>${escapeHTML(header)}</th>`; // Escape headers too
+            });
+            tableHTML += '</tr></thead><tbody>';
+
+            // Add table rows
+            data.forEach(row => {
+                tableHTML += '<tr>';
+                headers.forEach(header => {
+                    // Display the cell value (handle null/undefined and ensure string)
+                    const cellValue = row[header] === undefined || row[header] === null ? '' : String(row[header]);
+                    tableHTML += `<td>${escapeHTML(cellValue)}</td>`; // Escape HTML for display
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table>';
+            resultsArea.innerHTML = tableHTML;
+        }
+
+        // Helper function to escape HTML entities for displaying data in table cells
+        function escapeHTML(str) {
+            return str.replace(/[&<>"']/g, function(match) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[match];
+            });
+        }
+
+
+        // Listen for the back button click
+        backButton.addEventListener('click', function() {
+            console.log('Back button clicked.');
+            // Hide the second page and show the first page
+            secondPage.style.display = 'none';
+            firstPage.style.display = 'block'; // Or 'flex'
+
+             // Reset state for the next import
+             lastWeekInput.value = ''; // Clear file input
+             currentWeekInput.value = ''; // Clear file input
+             resultsArea.innerHTML = '<p class="loading-message">Select files and click Process to see results.</p>'; // Clear results area
+             exportButton.style.display = 'none'; // Hide export button
+             updatedCurrentWeekData = []; // Clear stored data
+             currentWeekHeaders = []; // Clear stored headers
+
+        });
+
+         // Listen for the export button click
+         exportButton.addEventListener('click', function() {
+             console.log('Export button clicked.');
+
+             if (updatedCurrentWeekData.length === 0 || currentWeekHeaders.length === 0) {
+                 alert("No data to export.");
+                 return;
+             }
+
+             // Use the stored headers and data
+             const csvString = formatCSV(currentWeekHeaders, updatedCurrentWeekData);
+             const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+
+             // Create a download link
+             const link = document.createElement('a');
+             const url = URL.createObjectURL(blob);
+             link.setAttribute('href', url);
+             link.setAttribute('download', 'updated_clash_results.csv');
+             link.style.visibility = 'hidden'; // Hide the link
+
+             // Append to body, click, and remove
+             document.body.appendChild(link);
+             link.click();
+
+             // Clean up
+             document.body.removeChild(link);
+             URL.revokeObjectURL(url);
+
+             console.log("CSV file exported.");
+         });
+
+    </script>
+
+</body>
+</html>
