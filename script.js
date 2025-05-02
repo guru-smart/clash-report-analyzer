@@ -1,6 +1,9 @@
 // Get references to the elements
-const firstPage = document.getElementById('firstPage');
-const secondPage = document.getElementById('secondPage');
+const homePage = document.getElementById('homePage');
+const importPage = document.getElementById('importPage'); // Renamed from firstPage
+const resultsPage = document.getElementById('resultsPage'); // Renamed from secondPage
+const getStartedButton = document.getElementById('getStartedButton'); // New button
+
 const lastWeekInput = document.getElementById('lastWeekFile');
 const currentWeekInput = document.getElementById('currentWeekFile');
 const processButton = document.getElementById('processButton');
@@ -110,6 +113,16 @@ function formatCSV(headers, data) {
 
 // --- Event Listeners ---
 
+// Listen for the Get Started button click
+getStartedButton.addEventListener('click', function() {
+    console.log('Get Started button clicked.');
+    // Hide home page and show import page
+    homePage.style.display = 'none';
+    importPage.style.display = 'block'; // Or 'flex' based on your desired layout
+    resultsPage.style.display = 'none'; // Ensure results page is hidden
+});
+
+
 // Listen for file selection (optional, for feedback)
 lastWeekInput.addEventListener('change', function() {
     if (this.files.length > 0) {
@@ -137,9 +150,9 @@ processButton.addEventListener('click', function() {
     }
 
     // --- Navigation ---
-    // Hide the first page and show the second page
-    firstPage.style.display = 'none';
-    secondPage.style.display = 'block'; // Or 'flex'
+    // Hide the import page and show the results page
+    importPage.style.display = 'none';
+    resultsPage.style.display = 'block'; // Or 'flex'
 
     // --- File Reading and Processing ---
     resultsArea.innerHTML = '<p class="loading-message">Reading and processing files...</p>'; // Show a loading message
@@ -213,39 +226,37 @@ function performComparisonAndDisplay(lastWeekCsvText, currentWeekCsvText) {
 
     // Validate required columns exist in both files
     const requiredColsLast = [...matchColumns, ...transferColumns];
-    const requiredColsCurrent = [...matchColumns, ...transferColumns]; // Both sets of columns should ideally exist in current week's structure
+    const requiredColsCurrent = [...matchColumns]; // Only match columns strictly required in current week for basic lookup
+    const requiredTransferColsCurrent = [...transferColumns]; // Transfer columns are required for writing
 
     const missingInLastWeek = requiredColsLast.filter(col => !lastWeekHeaders.includes(col));
-    // Check if match columns are missing in current week
-    const missingMatchInCurrentWeek = matchColumns.filter(col => !currentWeekHeaders.includes(col));
-    // Check if transfer columns are missing in current week (these are the ones we'll write to)
-    const missingTransferInCurrentWeek = transferColumns.filter(col => !currentWeekHeaders.includes(col));
+     const missingMatchInCurrentWeek = matchColumns.filter(col => !currentWeekHeaders.includes(col));
+     const missingTransferInCurrentWeek = transferColumns.filter(col => !currentWeekHeaders.includes(col));
 
 
-    if (missingInLastWeek.length > 0 || missingMatchInCurrentWeek.length > 0 || missingTransferInCurrentWeek.length > 0) {
-        let errorMessage = '<p style="color: red;">Missing required columns in files:</p>';
+    if (missingInLastWeek.length > 0 || missingMatchInCurrentWeek.length > 0) {
+        let errorMessage = '<p style="color: red;">Missing crucial columns. Cannot process:</p>';
         if (missingInLastWeek.length > 0) {
             errorMessage += `<p style="color: red;">Last week file missing: ${missingInLastWeek.join(', ')}</p>`;
         }
          if (missingMatchInCurrentWeek.length > 0) {
             errorMessage += `<p style="color: red;">Current week file missing match columns: ${missingMatchInCurrentWeek.join(', ')}</p>`;
         }
-         if (missingTransferInCurrentWeek.length > 0) {
-             errorMessage += `<p style="color: red;">Current week file missing transfer columns (will be added at the end): ${missingTransferInCurrentWeek.join(', ')}</p>`;
-             // If transfer columns are missing, add them to headers to ensure they appear in the output
-             missingTransferInCurrentWeek.forEach(col => {
-                 if (!currentWeekHeaders.includes(col)) {
-                      currentWeekHeaders.push(col);
-                 }
-             });
-         }
         resultsArea.innerHTML = errorMessage;
-        // Hide export button if crucial columns are missing
-        if (missingInLastWeek.length > 0 || missingMatchInCurrentWeek.length > 0) {
-           exportButton.style.display = 'none';
-            return; // Stop processing if match columns are missing
-        }
-        // Continue if only transfer columns are missing (they will be added)
+        exportButton.style.display = 'none';
+        // Don't proceed if critical columns for matching are missing
+        return;
+    }
+
+    // If transfer columns are missing in the current week file, add them to the headers
+    if (missingTransferInCurrentWeek.length > 0) {
+        let warningMessage = `<p style="color: orange;">Warning: Current week file missing transfer columns (will be added at the end): ${missingTransferInCurrentWeek.join(', ')}</p>`;
+        resultsArea.insertAdjacentHTML('afterbegin', warningMessage); // Add warning above the table
+        missingTransferInCurrentWeek.forEach(col => {
+            if (!currentWeekHeaders.includes(col)) {
+                 currentWeekHeaders.push(col);
+            }
+        });
     }
 
 
@@ -327,7 +338,12 @@ function displayDataInTable(headers, data) {
     });
 
     tableHTML += '</tbody></table>';
-    resultsArea.innerHTML = tableHTML;
+    resultsArea.innerHTML = tableHTML; // This will overwrite the loading message/warning
+     // Re-add the warning message if it was present
+    const warningMessage = resultsArea.querySelector('p[style*="color: orange"]');
+    if (warningMessage) {
+        resultsArea.prepend(warningMessage); // Add the warning back at the top
+    }
 }
 
 // Helper function to escape HTML entities for displaying data in table cells
@@ -347,9 +363,9 @@ function escapeHTML(str) {
 // Listen for the back button click
 backButton.addEventListener('click', function() {
     console.log('Back button clicked.');
-    // Hide the second page and show the first page
-    secondPage.style.display = 'none';
-    firstPage.style.display = 'block'; // Or 'flex'
+    // Hide the results page and show the import page
+    resultsPage.style.display = 'none';
+    importPage.style.display = 'block'; // Or 'flex'
 
     // Reset state for the next import
     lastWeekInput.value = ''; // Clear file input
@@ -358,7 +374,6 @@ backButton.addEventListener('click', function() {
     exportButton.style.display = 'none'; // Hide export button
     updatedCurrentWeekData = []; // Clear stored data
     currentWeekHeaders = []; // Clear stored headers
-
 });
 
 // Listen for the export button click
