@@ -1,64 +1,117 @@
-/* General Styles */
 body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
     background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+.page {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 800px; /* Increased max-width for results */
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#secondPage {
+    display: none;
+    text-align: left; /* Align text left for results */
 }
 
 h1, h2 {
-    margin: 0;
-    padding: 10px 0;
-    text-align: center;
-}
-
-/* Header Styles */
-header {
-    background-color: #007bff;
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
-}
-
-header h1 {
-    margin: 0;
-    font-size: 24px;
-}
-
-/* Footer Styles */
-footer {
-    background-color: #333;
-    color: white;
-    text-align: center;
-    padding: 10px 0;
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    font-size: 14px;
-}
-
-/* Main Content Section */
-.page {
-    padding: 20px;
-    max-width: 800px;
-    margin: auto;
-    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center; /* Center headings */
 }
 
 .import-option {
-    margin: 20px 0;
+    margin-bottom: 20px;
 }
 
-button {
+.import-option label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+}
+
+.import-option input[type="file"] {
+    display: block;
+    margin: 0 auto;
+}
+
+#processButton, #backButton, #exportButton {
     padding: 10px 20px;
-    font-size: 16px;
-    margin: 10px;
-    cursor: pointer;
     background-color: #007bff;
     color: white;
     border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    margin: 10px 5px; /* Space around buttons */
 }
 
-button:hover {
+#backButton {
+    background-color: #6c757d;
+}
+
+#exportButton {
+    background-color: #28a745; /* Green color for export */
+    display: none; /* Initially hidden */
+}
+
+#processButton:hover {
     background-color: #0056b3;
+}
+
+#backButton:hover {
+    background-color: #5a6268;
+}
+#exportButton:hover {
+    background-color: #218838;
+}
+
+#resultsArea {
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+    max-height: 400px; /* Limit height and add scroll */
+    overflow-y: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    word-break: break-word; /* Prevent long words breaking layout */
+}
+
+th {
+    background-color: #f2f2f2;
+    position: sticky; /* Make header sticky when scrolling */
+    top: 0;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.loading-message {
+    font-style: italic;
+    color: #555;
 }
