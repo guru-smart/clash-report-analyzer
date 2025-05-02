@@ -3,46 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clash Report Analyzer</title>
-    <link rel="stylesheet" href="styles.css"> <!-- External CSS for better maintainability -->
+    <title>Clash Result App</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Header Section -->
-    <header>
-        <h1>Clash Report Analyzer</h1>
-    </header>
 
-    <!-- Main Content -->
-    <main id="firstPage" class="page" role="main">
-        <h2>Welcome to the Clash Report Analyzer</h2>
+    <div id="firstPage" class="page">
+        <h1>Clash Result Importer</h1>
 
         <div class="import-option">
             <label for="lastWeekFile">Import Last Week's Clash Result (CSV):</label>
-            <input type="file" id="lastWeekFile" accept=".csv" aria-label="Last Week's Clash Result File">
+            <input type="file" id="lastWeekFile" accept=".csv">
         </div>
 
         <div class="import-option">
             <label for="currentWeekFile">Import Current Week's Clash Result (CSV):</label>
-            <input type="file" id="currentWeekFile" accept=".csv" aria-label="Current Week's Clash Result File">
+            <input type="file" id="currentWeekFile" accept=".csv">
         </div>
 
-        <button id="processButton" aria-label="Process Results">Process Results</button>
-    </main>
+        <button id="processButton">Process Results</button>
+    </div>
 
-    <section id="secondPage" class="page" role="region" aria-hidden="true">
+    <div id="secondPage" class="page">
         <h2>Updated Current Week Results</h2>
-        <div id="resultsArea" role="table" tabindex="0">
+        <div id="resultsArea">
             <p class="loading-message">Select files and click Process to see results.</p>
         </div>
-        <button id="exportButton" aria-label="Export Updated CSV" hidden>Export Updated CSV</button>
-        <button id="backButton" aria-label="Back to Import">Back to Import</button>
-    </section>
+        <button id="exportButton">Export Updated CSV</button>
+        <button id="backButton">Back to Import</button>
+    </div>
 
-    <!-- Footer Section -->
-    <footer>
-        <p>Developed by Guruprasath</p>
-    </footer>
+    <script src="script.js"></script>
 
-    <script src="script.js" defer></script> <!-- External JavaScript for better maintainability -->
 </body>
 </html>
