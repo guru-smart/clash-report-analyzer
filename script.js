@@ -226,8 +226,8 @@ function performComparisonAndDisplay(lastWeekCsvText, currentWeekCsvText) {
 
     // Validate required columns exist in both files
     const requiredColsLast = [...matchColumns, ...transferColumns];
-    const requiredColsCurrent = [...matchColumns]; // Only match columns strictly required in current week for basic lookup
-    const requiredTransferColsCurrent = [...transferColumns]; // Transfer columns are required for writing
+    const requiredMatchColsCurrent = [...matchColumns]; // Only match columns strictly required in current week for basic lookup
+
 
     const missingInLastWeek = requiredColsLast.filter(col => !lastWeekHeaders.includes(col));
      const missingMatchInCurrentWeek = matchColumns.filter(col => !currentWeekHeaders.includes(col));
@@ -279,6 +279,11 @@ function performComparisonAndDisplay(lastWeekCsvText, currentWeekCsvText) {
     console.log(`Built lookup map with ${lastWeekLookup.size} entries from last week data.`);
     console.log(`Processing ${currentWeekRows.length} rows from current week data.`);
 
+    // Counters for copied cells
+    let commentsCopiedCount = 0;
+    let solutionCopiedCount = 0;
+
+
     // Iterate through current week data and update transfer columns
     updatedCurrentWeekData = currentWeekRows.map(currentRow => {
         // Create a key for the current row
@@ -286,38 +291,93 @@ function performComparisonAndDisplay(lastWeekCsvText, currentWeekCsvText) {
 
         const oldTransferValues = lastWeekLookup.get(key); // Get transfer values from last week lookup
 
-        // If a matching row was found in last week, update the transfer columns
-        if (oldTransferValues !== undefined) { // Check if key exists (value is the transferValues object)
-             transferColumns.forEach(col => {
-                  currentRow[col] = oldTransferValues[col]; // Update the column in the current row object
-             });
-        } else {
-            // If no match, ensure the transfer columns exist and are empty strings if they were undefined
-             transferColumns.forEach(col => {
-                  if (currentRow[col] === undefined) {
-                     currentRow[col] = '';
-                  }
-             });
-        }
+        transferColumns.forEach(col => {
+             const currentRowValue = currentRow[col] === undefined || currentRow[col] === null ? '' : String(currentRow[col]).trim();
+             const lastWeekValue = oldTransferValues && oldTransferValues[col] !== undefined && oldTransferValues[col] !== null ? String(oldTransferValues[col]).trim() : ''; // Get last week value, trim, handle undefined
+
+            // Check if the current week's field is empty or whitespace
+            if (currentRowValue === '') {
+                // If current is empty AND last week has a non-empty value, copy it
+                if (lastWeekValue !== '') {
+                    currentRow[col] = lastWeekValue; // Copy value from last week
+                    if (col === 'Comments') commentsCopiedCount++;
+                    if (col === 'Solution') solutionCopiedCount++;
+                } else {
+                    // Current is empty, but last week is also empty or no match was found
+                    // Ensure the property exists even if empty
+                     if (currentRow[col] === undefined) {
+                         currentRow[col] = '';
+                     }
+                }
+            } else {
+                // Current value is NOT empty, keep it
+                // Ensure the property exists even if its non-empty
+                if (currentRow[col] === undefined) {
+                     currentRow[col] = currentRowValue; // Should not happen if currentRowValue is not empty, but for safety
+                }
+            }
+        });
+
         return currentRow; // Return the potentially updated row
     });
 
     console.log("Comparison complete. Data updated.");
+    console.log(`Comments copied: ${commentsCopiedCount}`);
+    console.log(`Solution copied: ${solutionCopiedCount}`);
+
 
     // --- Display Results ---
-    // Use the potentially modified currentWeekHeaders for display
-    displayDataInTable(currentWeekHeaders, updatedCurrentWeekData);
+
+    // Construct the summary message
+    const totalCurrentRows = currentWeekRows.length; // Use the original number of rows
+    const commentsNotCopied = totalCurrentRows - commentsCopiedCount;
+    const solutionNotCopied = totalCurrentRows - solutionCopiedCount;
+
+
+    const summaryMessage = `
+        <div class="summary-message">
+            <h3>Processing Summary</h3>
+            <p><strong>Comments Column:</strong> Copied ${commentsCopiedCount} cells from last week. Cells not copied: ${commentsNotCopied}</p>
+            <p><strong>Solution Column:</strong> Copied ${solutionCopiedCount} cells from last week. Cells not copied: ${solutionNotCopied}</p>
+        </div>
+        <hr> `;
+
+    // Display the data table and the summary message
+    displayDataInTable(currentWeekHeaders, updatedCurrentWeekData, summaryMessage);
+
 
     // Show the export button
     exportButton.style.display = 'inline-block';
 }
 
 // --- Function to display data in a table ---
-function displayDataInTable(headers, data) {
+// Added a parameter for the summary message
+function displayDataInTable(headers, data, summaryHtml = '') {
+    // Clear previous results and messages first
+    resultsArea.innerHTML = '';
+
+    // Add the summary message if provided
+    if (summaryHtml) {
+         resultsArea.insertAdjacentHTML('afterbegin', summaryHtml);
+    }
+
+
     if (data.length === 0) {
-        resultsArea.innerHTML = '<p>No data rows to display.</p>';
+        resultsArea.insertAdjacentHTML('beforeend', '<p>No data rows to display.</p>');
+        // Check if there was a warning message before clearing and re-add if necessary
+         const previousWarning = resultsArea.querySelector('p[style*="color: orange"]');
+         if (previousWarning) {
+              resultsArea.prepend(previousWarning);
+         }
         return;
     }
+
+    // Re-add the warning message if it was present before, ensure it's before the table
+     const previousWarning = resultsArea.querySelector('p[style*="color: orange"]');
+     if (previousWarning) {
+          resultsArea.appendChild(previousWarning); // Temporarily append
+     }
+
 
     let tableHTML = '<table><thead><tr>';
     // Add table headers
@@ -338,12 +398,13 @@ function displayDataInTable(headers, data) {
     });
 
     tableHTML += '</tbody></table>';
-    resultsArea.innerHTML = tableHTML; // This will overwrite the loading message/warning
-     // Re-add the warning message if it was present
-    const warningMessage = resultsArea.querySelector('p[style*="color: orange"]');
-    if (warningMessage) {
-        resultsArea.prepend(warningMessage); // Add the warning back at the top
-    }
+    resultsArea.insertAdjacentHTML('beforeend', tableHTML); // Add table after any warning/summary
+
+
+    // Re-position the warning message at the top if it exists and wasn't part of the summary
+     if (previousWarning && !summaryHtml.includes('color: orange')) {
+         resultsArea.prepend(previousWarning);
+     }
 }
 
 // Helper function to escape HTML entities for displaying data in table cells
