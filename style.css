@@ -3,11 +3,28 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start; /* Align items to the start to make space for header/footer */
     min-height: 100vh;
     background-color: #f4f4f4;
     margin: 0;
-    padding: 20px;
+    padding: 0; /* Remove body padding to allow header/footer to span width */
+    box-sizing: border-box;
+}
+
+header {
+    background-color: #0056b3; /* Darker blue for header */
+    color: white;
+    width: 100%;
+    padding: 15px 20px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px; /* Space below the header */
+}
+
+header h1 {
+    color: white; /* Ensure header text is white */
+    margin: 0; /* Remove default margin */
+    font-size: 1.8em;
 }
 
 .page {
@@ -16,13 +33,14 @@ body {
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     width: 90%;
-    max-width: 800px; /* Increased max-width for results */
+    max-width: 800px;
     text-align: center;
     box-sizing: border-box;
+    margin-bottom: 20px; /* Space below each page div */
+    flex-grow: 1; /* Allow pages to grow and push footer down */
 }
 
-#secondPage {
-    display: none;
+#resultsPage {
     text-align: left; /* Align text left for results */
 }
 
@@ -31,6 +49,17 @@ h1, h2 {
     margin-bottom: 20px;
     text-align: center; /* Center headings */
 }
+
+#homePage h2 {
+    color: #007bff; /* Highlight welcome heading */
+}
+
+#homePage p {
+    margin-bottom: 30px;
+    color: #555;
+    line-height: 1.5;
+}
+
 
 .import-option {
     margin-bottom: 20px;
@@ -48,7 +77,7 @@ h1, h2 {
     margin: 0 auto;
 }
 
-#processButton, #backButton, #exportButton {
+#getStartedButton, #processButton, #backButton, #exportButton {
     padding: 10px 20px;
     background-color: #007bff;
     color: white;
@@ -60,6 +89,10 @@ h1, h2 {
     margin: 10px 5px; /* Space around buttons */
 }
 
+#getStartedButton {
+     background-color: #28a745; /* Green color for Get Started */
+}
+
 #backButton {
     background-color: #6c757d;
 }
@@ -67,6 +100,10 @@ h1, h2 {
 #exportButton {
     background-color: #28a745; /* Green color for export */
     display: none; /* Initially hidden */
+}
+
+#getStartedButton:hover {
+    background-color: #218838;
 }
 
 #processButton:hover {
@@ -114,4 +151,18 @@ tr:nth-child(even) {
 .loading-message {
     font-style: italic;
     color: #555;
+}
+
+footer {
+    width: 100%;
+    text-align: center;
+    padding: 15px 20px;
+    margin-top: 20px; /* Space above the footer */
+    background-color: #eee; /* Light background for footer */
+    color: #555;
+    font-size: 0.9em;
+}
+
+footer p {
+    margin: 0; /* Remove default margin */
 }
