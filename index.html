@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clash Result App</title>
+    <title>Clash Report Analyzer</title>
     <link rel="stylesheet" href="styles.css"> <!-- External CSS for better maintainability -->
 </head>
 <body>
+    <!-- Header Section -->
+    <header>
+        <h1>Clash Report Analyzer</h1>
+    </header>
+
+    <!-- Main Content -->
     <main id="firstPage" class="page" role="main">
-        <h1>Clash Result Importer</h1>
+        <h2>Welcome to the Clash Report Analyzer</h2>
 
         <div class="import-option">
             <label for="lastWeekFile">Import Last Week's Clash Result (CSV):</label>
@@ -31,6 +37,11 @@
         <button id="exportButton" aria-label="Export Updated CSV" hidden>Export Updated CSV</button>
         <button id="backButton" aria-label="Back to Import">Back to Import</button>
     </section>
+
+    <!-- Footer Section -->
+    <footer>
+        <p>Developed by Guruprasath</p>
+    </footer>
 
     <script src="script.js" defer></script> <!-- External JavaScript for better maintainability -->
 </body>
