@@ -4,50 +4,796 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clash Report Analyzer</title>
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh; /* Ensure body takes at least full viewport height */
+        }
+        main {
+            flex-grow: 1; /* Allow main content to take available space */
+        }
+        .page-section {
+            display: none; /* Hide all page sections by default */
+        }
+        .page-section.active {
+            display: block; /* Show the active page section */
+        }
+         .drag-area {
+            border: 2px dashed #cbd5e0; /* Tailwind gray-300 */
+            border-radius: 0.5rem; /* Tailwind rounded-lg */
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        .drag-area.dragover {
+            border-color: #3b82f6; /* Tailwind blue-500 */
+        }
+        .hidden-input {
+            display: none;
+        }
+        .process-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .message-box {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: left;
+        }
+        .message-box.error {
+            border-color: #ef4444; /* Tailwind red-500 */
+            background-color: #fee2e2; /* Tailwind red-100 */
+            color: #dc2626; /* Tailwind red-700 */
+        }
+        .message-box.success {
+            border-color: #22c55e; /* Tailwind green-500 */
+            background-color: #dcfce7; /* Tailwind green-100 */
+            color: #15803d; /* Tailwind green-700 */
+        }
+    </style>
 </head>
-<body>
+<body class="bg-gray-100 text-gray-900">
 
-    <header>
-        <h1>Clash Report Analyzer</h1>
+    <header class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto">
+            <h1 class="text-2xl font-bold">Clash Report Analyzer</h1>
+        </div>
     </header>
 
-    <div id="homePage" class="page">
-        <h2>Welcome</h2>
-        <p>Import last week's and current week's Clash CSV results to compare and update comments/solutions.</p>
-        <button id="getStartedButton">Get Started</button>
-    </div>
+    <main class="container mx-auto px-4 py-8">
 
-    <div id="importPage" class="page" style="display: none;">
-        <h2>Import Clash Results</h2>
+        <section id="landing-page" class="page-section active py-16 flex flex-col items-center justify-center text-center">
+            <h2 class="text-4xl font-bold mb-6">Welcome to Clash Report Analyzer</h2>
+            <p class="text-lg text-gray-700 mb-8 max-w-2xl">
+                </p>
+            <button id="getStartedButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition duration-300 ease-in-out shadow-lg">
+                Get Started
+            </button>
+        </section>
 
-        <div class="import-option">
-            <label for="lastWeekFile">Import Last Week's Clash Result (CSV):</label>
-            <input type="file" id="lastWeekFile" accept=".csv">
-        </div>
+        <section id="upload-page" class="page-section">
+             <h2 class="text-3xl font-bold text-center mb-8">Upload Clash Reports</h2>
 
-        <div class="import-option">
-            <label for="currentWeekFile">Import Current Week's Clash Result (CSV):</label>
-            <input type="file" id="currentWeekFile" accept=".csv">
-        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
 
-        <button id="processButton">Process Results</button>
-    </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Last Week Clash Report</h3>
+                    <div id="lastWeekDragArea" class="drag-area flex flex-col items-center justify-center">
+                        <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="text-gray-600 mb-2">Drag & drop your file here, or</p>
+                        <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">Browse File</button>
+                        <input type="file" id="lastWeekFileInput" class="hidden-input" accept=".csv, .xls, .xlsx">
+                    </div>
+                    <p id="lastWeekFileName" class="text-sm text-gray-700 mt-3 text-center"></p>
+                </div>
 
-    <div id="resultsPage" class="page" style="display: none;">
-        <h2>Updated Current Week Results</h2>
-        <div id="resultsArea">
-            <p class="loading-message">Select files and click Process to see results.</p>
-        </div>
-        <button id="exportButton">Export Updated CSV</button>
-        <button id="backButton">Back to Import</button>
-    </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Current Week Clash Report</h3>
+                    <div id="currentWeekDragArea" class="drag-area flex flex-col items-center justify-center">
+                        <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="text-gray-600 mb-2">Drag & drop your file here, or</p>
+                        <button class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">Browse File</button>
+                        <input type="file" id="currentWeekFileInput" class="hidden-input" accept=".csv, .xls, .xlsx">
+                    </div>
+                    <p id="currentWeekFileName" class="text-sm text-gray-700 mt-3 text-center"></p>
+                </div>
 
-    <footer>
-        <p>Developed by Guruprasath.</p>
+            </div>
+
+            <div class="text-center mt-10">
+                <button id="processButton" class="process-button bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-12 rounded-lg transition duration-300 ease-in-out shadow-lg" disabled>
+                    Process Reports
+                </button>
+            </div>
+
+            <div id="uploadMessageBox" class="message-box hidden max-w-md mx-auto mt-6">
+                <p id="uploadMessageText"></p>
+            </div>
+        </section>
+
+        <section id="results-page" class="page-section">
+            <h2 class="text-3xl font-bold text-center mb-8">Analysis Results</h2>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8 max-w-3xl mx-auto">
+                <h3 class="text-xl font-semibold mb-4">Summary of Analysis</h3>
+                <div id="analysisSummary" class="space-y-2 text-gray-700">
+                    <p><strong>Total non-empty values (Last Week):</strong></p>
+                    <ul class="list-disc list-inside ml-4">
+                        <li>Comments: <span id="totalNonEmptyLastWeekComments">Loading...</span></li>
+                        <li>Solution: <span id="totalNonEmptyLastWeekSolution">Loading...</span></li>
+                    </ul>
+
+                    <p><strong>Total values copied to Current Week:</strong></p>
+                     <ul class="list-disc list-inside ml-4">
+                        <li>Comments: <span id="totalCopiedComments">Loading...</span></li>
+                        <li>Solution: <span id="totalCopiedSolution">Loading...</span></li>
+                    </ul>
+
+                    <p><strong>Total values not copied (Current Week had values):</strong></p>
+                     <ul class="list-disc list-inside ml-4">
+                        <li>Comments: <span id="totalNotCopiedComments">Loading...</span></li>
+                        <li>Solution: <span id="totalNotCopiedSolution">Loading...</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8 max-w-3xl mx-auto">
+                <h3 class="text-xl font-semibold mb-4">Visualizations</h3>
+                <div id="analysisVisualizations" class="text-gray-600 text-center py-8">
+                    <p>Visualizations (charts, tables) will appear here after processing.</p>
+                    </div>
+            </div>
+
+            <div class="text-center mt-10 space-x-4">
+                <button id="exportButton" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-12 rounded-lg transition duration-300 ease-in-out shadow-lg" disabled>
+                    Download Updated Clash Report
+                </button>
+                 <button id="exportNotCopiedButton" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-12 rounded-lg transition duration-300 ease-in-out shadow-lg" disabled>
+                    Download Not Copied Report
+                </button>
+                 <button id="goBackButton" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-12 rounded-lg transition duration-300 ease-in-out shadow-lg">
+                    Go Back to Upload
+                </button>
+            </div>
+
+             <div id="resultsMessageBox" class="message-box hidden max-w-md mx-auto mt-6">
+                <p id="resultsMessageText"></p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-200 text-gray-700 p-4 text-center mt-8">
+        <p>&copy; Developed by Guruprasath</p>
     </footer>
 
-    <script src="script.js"></script>
+    <script>
+        // --- Page Navigation Logic ---
+        const pages = ['landing-page', 'upload-page', 'results-page'];
+        let currentPage = 'landing-page'; // Start on the landing page
+
+        // Function to show a specific page and hide others
+        function showPage(pageId) {
+            pages.forEach(id => {
+                const pageElement = document.getElementById(id);
+                if (pageElement) {
+                    if (id === pageId) {
+                        pageElement.classList.add('active');
+                        // Ensure display is block when active
+                        pageElement.style.display = 'block';
+                    } else {
+                        pageElement.classList.remove('active');
+                         // Explicitly hide inactive pages
+                        pageElement.style.display = 'none';
+                    }
+                }
+            });
+            currentPage = pageId;
+
+            // --- Reset Upload Page State on Navigation ---
+            if (pageId === 'upload-page') {
+                 // Reset file inputs
+                 lastWeekFileInput.value = ''; // Clear the selected file
+                 currentWeekFileInput.value = ''; // Clear the selected file
+
+                 // Reset file variables
+                 lastWeekFile = null;
+                 currentWeekFile = null;
+
+                 // Clear displayed file names
+                 lastWeekFileName.textContent = '';
+                 currentWeekFileName.textContent = '';
+
+                 // Disable and reset process button
+                 processButton.disabled = true;
+                 processButton.textContent = 'Process Reports';
+                 processButton.classList.add('process-button:disabled');
+
+                 // Hide any upload messages
+                 hideUploadMessage();
+            }
+             // --- End Reset Logic ---
+        }
+
+        // Initial page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Show the landing page initially
+            showPage('landing-page');
+
+            // The reset logic is now handled within showPage when navigating to 'upload-page'
+        });
+
+
+        // --- Landing Page Logic ---
+        const getStartedButton = document.getElementById('getStartedButton');
+        if (getStartedButton) { // Check if the element exists
+             getStartedButton.addEventListener('click', () => {
+                showPage('upload-page');
+            });
+        }
+
+
+        // --- Upload Page Logic ---
+        const lastWeekDragArea = document.getElementById('lastWeekDragArea');
+        const lastWeekFileInput = document.getElementById('lastWeekFileInput');
+        const lastWeekFileName = document.getElementById('lastWeekFileName');
+
+        const currentWeekDragArea = document.getElementById('currentWeekDragArea');
+        const currentWeekFileInput = document.getElementById('currentWeekFileInput');
+        const currentWeekFileName = document.getElementById('currentWeekFileName');
+
+        const processButton = document.getElementById('processButton');
+        const uploadMessageBox = document.getElementById('uploadMessageBox');
+        const uploadMessageText = document.getElementById('uploadMessageText');
+
+
+        let lastWeekFile = null;
+        let currentWeekFile = null;
+        let processedReportData = null; // Variable to store processed data
+        let notCopiedRows = []; // Variable to store rows that were not copied
+
+
+        // Function to show messages on upload page
+        function showUploadMessage(text, type = 'info') {
+            uploadMessageText.textContent = text;
+            uploadMessageBox.classList.remove('hidden', 'error', 'success');
+             if (type === 'error') {
+                 uploadMessageBox.classList.add('error');
+            } else if (type === 'success') {
+                 uploadMessageBox.classList.add('success');
+            } else {
+                 uploadMessageBox.classList.remove('error', 'success');
+            }
+            uploadMessageBox.classList.remove('hidden');
+        }
+
+        // Function to hide messages on upload page
+        function hideUploadMessage() {
+            uploadMessageBox.classList.add('hidden');
+        }
+
+
+        // Function to handle file selection and update UI
+        function handleFileSelect(file, fileNameElement, dragAreaElement) {
+            hideUploadMessage(); // Hide previous messages on new file select
+            if (file) {
+                const allowedTypes = ['.csv', '.xls', '.xlsx'];
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+                if (!allowedTypes.includes(fileExtension)) {
+                    fileNameElement.textContent = `Invalid file type: ${file.name}. Please upload .csv, .xls, or .xlsx.`;
+                    fileNameElement.classList.add('text-red-500');
+                    dragAreaElement.classList.remove('dragover');
+                    return null; // Return null for invalid file type
+                }
+
+                fileNameElement.textContent = `Selected file: ${file.name}`;
+                fileNameElement.classList.remove('text-red-500'); // Remove error color if any
+                dragAreaElement.classList.remove('dragover'); // Remove dragover class
+                return file;
+            } else {
+                fileNameElement.textContent = 'No file selected.';
+                fileNameElement.classList.remove('text-red-500');
+                return null;
+            }
+        }
+
+        // Function to check if both files are selected and enable/disable the process button
+        function checkFilesAndEnableButton() {
+            if (lastWeekFile && currentWeekFile) {
+                processButton.disabled = false;
+                processButton.textContent = 'Process Reports'; // Reset text
+                processButton.classList.remove('process-button:disabled'); // Remove disabled styling
+            } else {
+                processButton.disabled = true;
+                processButton.textContent = 'Process Reports'; // Reset text
+                processButton.classList.add('process-button:disabled'); // Add disabled styling
+            }
+        }
+
+        // Add event listeners for file input changes
+        lastWeekFileInput.addEventListener('change', (event) => {
+            lastWeekFile = handleFileSelect(event.target.files[0], lastWeekFileName, lastWeekDragArea);
+            checkFilesAndEnableButton();
+        });
+
+        currentWeekFileInput.addEventListener('change', (event) => {
+            currentWeekFile = handleFileSelect(event.target.files[0], currentWeekFileName, currentWeekDragArea);
+            checkFilesAndEnableButton();
+        });
+
+        // Add event listeners for drag and drop functionality
+        function addDragDropListeners(dragArea, fileInput) {
+            dragArea.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                dragArea.classList.add('dragover');
+            });
+
+            dragArea.addEventListener('dragleave', () => {
+                dragArea.classList.remove('dragover');
+            });
+
+            dragArea.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dragArea.classList.remove('dragover');
+                const files = event.dataTransfer.files;
+                if (files.length > 0) {
+                    // Simulate file input change
+                    fileInput.files = files;
+                    const changeEvent = new Event('change');
+                    fileInput.dispatchEvent(changeEvent);
+                }
+            });
+
+            // Allow clicking the drag area to open file input
+            dragArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+        }
+
+        addDragDropListeners(lastWeekDragArea, lastWeekFileInput);
+        addDragDropListeners(currentWeekDragArea, currentWeekFileInput);
+
+        // Function to read file using FileReader
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = e.target.result;
+                    resolve(data);
+                };
+                reader.onerror = (e) => {
+                    reject(e);
+                };
+                // Read as binary string for SheetJS
+                reader.readAsBinaryString(file);
+            });
+        }
+
+        // Function to parse file data using SheetJS
+        function parseFile(data, fileName) {
+            try {
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+
+                // Log the raw worksheet object for detailed debugging
+                console.log(`Raw worksheet data from "${fileName}":`, worksheet);
+
+                // Explicitly get data as array of arrays to ensure correct header extraction
+                const jsonArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                // Log the array of arrays structure
+                console.log(`Parsed data from "${fileName}" (array of arrays):`, jsonArray.slice(0, 5)); // Log first 5 rows
+
+                // Assuming the first row of the array of arrays is the header
+                const headerRow = jsonArray[0];
+                const actualColumns = headerRow || []; // Get keys from the first row, default to empty array if no rows
+
+                 // Log the actual columns found for debugging
+                console.log(`Actual columns found in "${fileName}" (from header row):`, actualColumns);
+
+                // Manually construct array of objects using the detected headers
+                let json = [];
+                if (headerRow && jsonArray.length > 1) {
+                    const dataRows = jsonArray.slice(1); // Get data rows (excluding header)
+                    dataRows.forEach(row => {
+                        const rowObject = {};
+                        headerRow.forEach((header, index) => {
+                             // Clean header string (trim whitespace)
+                            const cleanedHeader = String(header || '').trim(); // Ensure header is string and handle null/undefined
+                            rowObject[cleanedHeader] = row[index];
+                        });
+                        json.push(rowObject);
+                    });
+                }
+
+
+                 // Log the final parsed JSON structure for debugging
+                console.log(`Final parsed data from "${fileName}" (first 5 rows):`, json.slice(0, 5));
+
+
+                // Basic check for expected columns after parsing
+                const expectedColumns = ['Set A Element', 'Set B Element', 'Comments', 'Solution'];
+
+                // Check if the actualColumns array contains all expected columns
+                const missingColumns = expectedColumns.filter(col => !actualColumns.includes(col));
+
+                if (missingColumns.length > 0) {
+                    // If columns are missing, provide a detailed error
+                    throw new Error(`Missing required columns: ${missingColumns.join(', ')}. Please ensure your file has these columns with exact headers.`);
+                }
+
+                // If no data rows were found after parsing, it might indicate an issue
+                 if (json.length === 0 && jsonArray.length > 1) {
+                     console.warn(`File "${fileName}" parsed successfully but resulted in 0 data rows after header extraction.`);
+                     // Decide if this should be an error or not based on expected file content
+                     // For now, we'll let it pass but log a warning. If you expect data,
+                     // you might want to throw an error here.
+                 } else if (jsonArray.length <= 1) {
+                      // If only header row or empty file
+                      throw new Error(`File "${fileName}" appears to be empty or only contains a header row.`);
+                 }
+
+
+                return json; // Return the data as array of objects
+            } catch (error) {
+                console.error("Error parsing file:", fileName, error);
+                // Re-throw the specific error with file name context
+                throw new Error(`Error parsing file "${fileName}": ${error.message || error}`);
+            }
+        }
+
+        // Core processing logic
+        function processClashReports(lastWeekData, currentWeekData) {
+            let totalNonEmptyLastWeekComments = 0;
+            let totalNonEmptyLastWeekSolution = 0;
+            let totalCopiedComments = 0;
+            let totalCopiedSolution = 0;
+            let totalNotCopiedComments = 0;
+            let totalNotCopiedSolution = 0;
+
+            const rowsNotCopied = []; // Array to store rows where values were not copied
+
+            // Create a map for faster lookup of last week data by key
+            const lastWeekMap = new Map();
+            lastWeekData.forEach(row => {
+                 // Use string conversion in case elements are not strings
+                const key = `${String(row['Set A Element'] || '')}__${String(row['Set B Element'] || '')}`; // Create a unique key
+                lastWeekMap.set(key, row);
+                // Count non-empty comments/solutions in last week
+                if (row['Comments'] && String(row['Comments'] || '').trim() !== '') { // Added || '' for safety
+                    totalNonEmptyLastWeekComments++;
+                }
+                if (row['Solution'] && String(row['Solution'] || '').trim() !== '') { // Added || '' for safety
+                    totalNonEmptyLastWeekSolution++;
+                }
+            });
+
+            // Create a copy of current week data to modify
+            // Deep clone to avoid modifying original array from file input
+            const processedCurrentWeekData = JSON.parse(JSON.stringify(currentWeekData));
+
+            // Iterate through current week data and merge
+            processedCurrentWeekData.forEach(currentRow => {
+                 // Use string conversion in case elements are not strings
+                const key = `${String(currentRow['Set A Element'] || '')}__${String(currentRow['Set B Element'] || '')}`; // Corrected typo 'Set B B Element' to 'Set B Element'
+                const lastWeekRow = lastWeekMap.get(key);
+
+                let commentsNotCopied = false;
+                let solutionNotCopied = false;
+
+                if (lastWeekRow) {
+                    // Match found
+
+                    // Check and copy Comments
+                    const currentCommentsEmpty = !currentRow['Comments'] || String(currentRow['Comments'] || '').trim() === ''; // Added || '' for safety
+                    const lastWeekCommentsNotEmpty = lastWeekRow['Comments'] && String(lastWeekRow['Comments'] || '').trim() !== ''; // Added || '' for safety
+
+                    if (currentCommentsEmpty && lastWeekCommentsNotEmpty) {
+                        currentRow['Comments'] = lastWeekRow['Comments'];
+                        totalCopiedComments++;
+                    } else if (!currentCommentsEmpty && lastWeekCommentsNotEmpty) {
+                         // If both have values, and last week had a value, count as not copied because current had value
+                         totalNotCopiedComments++;
+                         commentsNotCopied = true;
+                    }
+
+
+                    // Check and copy Solution
+                    const currentSolutionEmpty = !currentRow['Solution'] || String(currentRow['Solution'] || '').trim() === ''; // Added || '' for safety
+                    const lastWeekSolutionNotEmpty = lastWeekRow['Solution'] && String(lastWeekRow['Solution'] || '').trim() !== ''; // Added || '' for safety
+
+                     if (currentSolutionEmpty && lastWeekSolutionNotEmpty) {
+                        currentRow['Solution'] = lastWeekRow['Solution'];
+                        totalCopiedSolution++;
+                    } else if (!currentSolutionEmpty && lastWeekSolutionNotEmpty) {
+                         // If both have values, and last week had a value, count as not copied because current had value
+                         totalNotCopiedSolution++;
+                         solutionNotCopied = true;
+                    }
+                }
+
+                // If either comments or solution were not copied because current had values, add the row
+                if (commentsNotCopied || solutionNotCopied) {
+                     rowsNotCopied.push(currentRow);
+                }
+            });
+
+            return {
+                summary: {
+                    totalNonEmptyLastWeek: {
+                        comments: totalNonEmptyLastWeekComments,
+                        solution: totalNonEmptyLastWeekSolution
+                    },
+                    totalCopied: {
+                        comments: totalCopiedComments,
+                        solution: totalCopiedSolution
+                    },
+                    totalNotCopied: {
+                        comments: totalNotCopiedComments,
+                        solution: totalNotCopiedSolution
+                    }
+                },
+                processedData: processedCurrentWeekData, // The modified current week data
+                notCopiedRows: rowsNotCopied // The rows that were not copied
+            };
+        }
+
+
+        // Handle Process Button Click
+        processButton.addEventListener('click', async () => {
+            if (!processButton.disabled && lastWeekFile && currentWeekFile) {
+                hideUploadMessage(); // Hide any previous messages
+                processButton.disabled = true; // Disable button during processing
+                processButton.textContent = 'Processing...';
+
+                try {
+                    // Read and parse files
+                    const lastWeekDataRaw = await readFile(lastWeekFile);
+                    const currentWeekDataRaw = await readFile(currentWeekFile);
+
+                    // Added checks for successful parsing
+                    const lastWeekParsed = parseFile(lastWeekDataRaw, lastWeekFile.name);
+                    if (!lastWeekParsed) {
+                         // parseFile would have already shown a message
+                         processButton.disabled = false;
+                         processButton.textContent = 'Process Reports';
+                         return;
+                    }
+
+                    const currentWeekParsed = parseFile(currentWeekDataRaw, currentWeekFile.name);
+                     if (!currentWeekParsed) {
+                         // parseFile would have already shown a message
+                         processButton.disabled = false;
+                         processButton.textContent = 'Process Reports';
+                         return;
+                    }
+
+
+                    // Perform processing
+                    const results = processClashReports(lastWeekParsed, currentWeekParsed);
+
+                    // Store results and processed data in variables
+                    processedReportData = results.processedData; // Store processed data
+                    notCopiedRows = results.notCopiedRows; // Store not copied rows
+
+                    // Update results page UI directly
+                    displayResults(results.summary, currentWeekFile.name);
+
+                    // Navigate to results page
+                    showPage('results-page');
+
+                } catch (error) {
+                    console.error("Processing error:", error);
+                    // Log the full error object for better debugging
+                    console.error(error);
+                    // Display a user-friendly error message including the error details
+                    // Check if the error is a string or has a message property
+                    const errorMessage = typeof error === 'string' ? error : error.message || 'An unknown error occurred.';
+                    showUploadMessage(`Processing failed: ${errorMessage}`, 'error');
+                    processButton.disabled = false;
+                    processButton.textContent = 'Process Reports';
+                }
+            }
+        });
+
+
+        // --- Results Page Logic ---
+        const totalNonEmptyLastWeekCommentsElement = document.getElementById('totalNonEmptyLastWeekComments');
+        const totalNonEmptyLastWeekSolutionElement = document.getElementById('totalNonEmptyLastWeekSolution');
+        const totalCopiedCommentsElement = document.getElementById('totalCopiedComments');
+        const totalCopiedSolutionElement = document.getElementById('totalCopiedSolution');
+        const totalNotCopiedCommentsElement = document.getElementById('totalNotCopiedComments');
+        const totalNotCopiedSolutionElement = document.getElementById('totalNotCopiedSolution');
+
+        const exportButton = document.getElementById('exportButton');
+        const exportNotCopiedButton = document.getElementById('exportNotCopiedButton'); // Get the new button
+        const goBackButton = document.getElementById('goBackButton'); // Get the new go back button
+        const resultsMessageBox = document.getElementById('resultsMessageBox');
+        const resultsMessageText = document.getElementById('resultsMessageText');
+
+
+        // Function to show messages on results page
+        function showResultsMessage(text, type = 'info') {
+            resultsMessageText.textContent = text;
+            resultsMessageBox.classList.remove('hidden', 'error'); // Only remove error for info/success
+            if (type === 'error') {
+                 resultsMessageBox.classList.add('error');
+            } else {
+                 resultsMessageBox.classList.remove('error'); // Remove error if not an error message
+            }
+            resultsMessageBox.classList.remove('hidden');
+        }
+
+        // Function to hide messages on results page
+        function hideResultsMessage() {
+            resultsMessageBox.classList.add('hidden');
+        }
+
+
+        // Function to display results on the results page
+        function displayResults(summary, originalFileName) {
+             hideResultsMessage(); // Hide any previous messages
+
+            if (summary && processedReportData) {
+                // Update the summary display with separate counts
+                totalNonEmptyLastWeekCommentsElement.textContent = summary.totalNonEmptyLastWeek.comments;
+                totalNonEmptyLastWeekSolutionElement.textContent = summary.totalNonEmptyLastWeek.solution;
+                totalCopiedCommentsElement.textContent = summary.totalCopied.comments;
+                totalCopiedSolutionElement.textContent = summary.totalCopied.solution;
+                totalNotCopiedCommentsElement.textContent = summary.totalNotCopied.comments;
+                totalNotCopiedSolutionElement.textContent = summary.totalNotCopied.solution;
+
+                // Enable the export buttons and add download logic
+                exportButton.disabled = false;
+                exportButton.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                // Enable the new "Download Not Copied Report" button if there are rows to export
+                 if (notCopiedRows.length > 0) {
+                     exportNotCopiedButton.disabled = false;
+                     exportNotCopiedButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                 } else {
+                     exportNotCopiedButton.disabled = true;
+                     exportNotCopiedButton.classList.add('opacity-50', 'cursor-not-allowed');
+                 }
+
+
+                // Remove previous event listeners from export buttons to avoid duplicates
+                const oldExportButton = exportButton;
+                const newExportButton = oldExportButton.cloneNode(true);
+                 if (oldExportButton && oldExportButton.parentNode) {
+                    oldExportButton.parentNode.replaceChild(newExportButton, oldExportButton);
+                 } else {
+                     const buttonContainer = document.querySelector('.text-center.mt-10.space-x-4');
+                     if (buttonContainer) {
+                         buttonContainer.appendChild(newExportButton);
+                     } else {
+                         console.error("Could not find button container to append new export button.");
+                     }
+                 }
+                const updatedExportButton = document.getElementById('exportButton'); // Get the new button element
+
+
+                const oldExportNotCopiedButton = exportNotCopiedButton;
+                const newExportNotCopiedButton = oldExportNotCopiedButton.cloneNode(true);
+                 if (oldExportNotCopiedButton && oldExportNotCopiedButton.parentNode) {
+                    oldExportNotCopiedButton.parentNode.replaceChild(newExportNotCopiedButton, oldExportNotCopiedButton);
+                 } else {
+                     const buttonContainer = document.querySelector('.text-center.mt-10.space-x-4');
+                     if (buttonContainer) {
+                         buttonContainer.appendChild(newExportNotCopiedButton);
+                     } else {
+                         console.error("Could not find button container to append new export not copied button.");
+                     }
+                 }
+                const updatedExportNotCopiedButton = document.getElementById('exportNotCopiedButton'); // Get the new button element
+
+
+                // Add event listener for the "Download Updated Clash Report" button
+                updatedExportButton.addEventListener('click', () => {
+                    exportData(processedReportData, originalFileName, 'updated');
+                });
+
+                 // Add event listener for the new "Download Not Copied Report" button
+                 updatedExportNotCopiedButton.addEventListener('click', () => {
+                     exportData(notCopiedRows, originalFileName, 'not_copied');
+                 });
+
+
+                // Add event listener for the Go Back button
+                if (goBackButton) { // Check if the element exists
+                     goBackButton.addEventListener('click', () => {
+                        showPage('upload-page'); // Navigate back to the upload page
+                     });
+                }
+
+
+            } else {
+                // Handle cases where results data is not available
+                totalNonEmptyLastWeekCommentsElement.textContent = 'N/A';
+                totalNonEmptyLastWeekSolutionElement.textContent = 'N/A';
+                totalCopiedCommentsElement.textContent = 'N/A';
+                totalCopiedSolutionElement.textContent = 'N/A';
+                totalNotCopiedCommentsElement.textContent = 'N/A';
+                totalNotCopiedSolutionElement.textContent = 'N/A';
+
+                showResultsMessage("No analysis results found. Please go back to the upload page and process your reports.", 'error');
+                 exportButton.disabled = true;
+                 exportButton.classList.add('opacity-50', 'cursor-not-allowed');
+                 exportNotCopiedButton.disabled = true; // Disable new button as well
+                 exportNotCopiedButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+
+                  // Disable go back button if no results to process
+                 if (goBackButton) {
+                     goBackButton.disabled = false; // Still allow going back even if no results
+                 }
+            }
+        }
+
+        // Function to export data to a file
+        function exportData(dataToExport, originalFileName, suffix) {
+             if (!dataToExport || dataToExport.length === 0) {
+                 showResultsMessage(`No data to export for the ${suffix.replace('_', ' ')} report.`, 'error');
+                 return;
+            }
+
+            // Create a new workbook
+            const wb = XLSX.utils.book_new();
+            // Convert the JSON data to a worksheet
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            // Add the worksheet to the workbook
+            const sheetName = suffix === 'updated' ? "Updated Report" : "Not Copied Report";
+            XLSX.utils.book_append_sheet(wb, ws, sheetName); // Sheet name
+
+            // Generate the file and trigger download
+            // Determine file type based on original file name
+            const fileExtension = originalFileName.split('.').pop().toLowerCase();
+            let fileType = 'xlsx'; // Default to xlsx
+            if (fileExtension === 'csv') {
+                fileType = 'csv';
+            }
+
+            const wbout = XLSX.write(wb, { bookType: fileType, type: 'binary' });
+
+            function s2ab(s) {
+                const buf = new ArrayBuffer(s.length);
+                const view = new Uint8Array(buf);
+                for (let i = 0; i < s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
+                return buf;
+            }
+
+            const blob = new Blob([s2ab(wbout)], { type: `application/octet-stream` });
+
+            // Create a download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // Suggest a download file name
+            const suggestedFileName = originalFileName.replace(`.${fileExtension}`, '') + `_${suffix}.` + fileType;
+            a.download = suggestedFileName;
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 0);
+        }
+
+    </script>
 
 </body>
 </html>
