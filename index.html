@@ -13,6 +13,8 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh; /* Ensure body takes at least full viewport height */
+            /* Changed background color to white */
+            background-color: #fff;
         }
         main {
             flex-grow: 1; /* Allow main content to take available space */
@@ -49,6 +51,9 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             text-align: left;
+            /* Added styles to center the message box */
+            margin-left: auto;
+            margin-right: auto;
         }
         .message-box.error {
             border-color: #ef4444; /* Tailwind red-500 */
@@ -60,9 +65,35 @@
             background-color: #dcfce7; /* Tailwind green-100 */
             color: #15803d; /* Tailwind green-700 */
         }
+        .match-status {
+            font-weight: bold;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .match-status.matched {
+            color: #15803d; /* Tailwind green-700 */
+        }
+        .match-status.not-matched {
+            color: #dc2626; /* Tailwind red-700 */
+        }
+        .column-selection {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0; /* Tailwind gray-200 */
+            text-align: left;
+        }
+        .column-selection h4 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .column-selection label {
+            margin-right: 1rem;
+            font-size: 0.9rem;
+            color: #4a5568; /* Tailwind gray-700 */
+        }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
+<body class="bg-white text-gray-900">
 
     <header class="bg-blue-600 text-white p-4 shadow-md">
         <div class="container mx-auto">
@@ -74,8 +105,9 @@
 
         <section id="landing-page" class="page-section active py-16 flex flex-col items-center justify-center text-center">
             <h2 class="text-4xl font-bold mb-6">Welcome to Clash Report Analyzer</h2>
-            <p class="text-lg text-gray-700 mb-8 max-w-2xl">
-                </p>
+            <p class="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
+                Analyze and merge your weekly clash reports. Upload last week's and current week's reports to compare changes and automatically copy select column values from the previous week into empty fields in the current report.
+            </p>
             <button id="getStartedButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition duration-300 ease-in-out shadow-lg">
                 Get Started
             </button>
@@ -95,6 +127,11 @@
                         <input type="file" id="lastWeekFileInput" class="hidden-input" accept=".csv, .xls, .xlsx">
                     </div>
                     <p id="lastWeekFileName" class="text-sm text-gray-700 mt-3 text-center"></p>
+                     <div id="columnSelectionArea" class="column-selection hidden">
+                         <h4>Select columns to copy to Current Week:</h4>
+                         <div id="columnCheckboxes">
+                             </div>
+                     </div>
                 </div>
 
                 <div class="bg-white p-6 rounded-lg shadow-md">
@@ -127,31 +164,32 @@
             <div class="bg-white p-6 rounded-lg shadow-md mb-8 max-w-3xl mx-auto">
                 <h3 class="text-xl font-semibold mb-4">Summary of Analysis</h3>
                 <div id="analysisSummary" class="space-y-2 text-gray-700">
-                    <p><strong>Total non-empty values (Last Week):</strong></p>
-                    <ul class="list-disc list-inside ml-4">
-                        <li>Comments: <span id="totalNonEmptyLastWeekComments">Loading...</span></li>
-                        <li>Solution: <span id="totalNonEmptyLastWeekSolution">Loading...</span></li>
-                    </ul>
+                    <p><strong>Selected columns for copying:</strong> <span id="selectedColumnsSummary">None</span></p>
 
-                    <p><strong>Total values copied to Current Week:</strong></p>
-                     <ul class="list-disc list-inside ml-4">
-                        <li>Comments: <span id="totalCopiedComments">Loading...</span></li>
-                        <li>Solution: <span id="totalCopiedSolution">Loading...</span></li>
-                    </ul>
+                    <p><strong>Total non-empty values (Last Week) in selected columns:</strong></p>
+                    <ul id="totalNonEmptyLastWeekSelected" class="list-disc list-inside ml-4">
+                        </ul>
 
-                    <p><strong>Total values not copied (Current Week had values):</strong></p>
-                     <ul class="list-disc list-inside ml-4">
-                        <li>Comments: <span id="totalNotCopiedComments">Loading...</span></li>
-                        <li>Solution: <span id="totalNotCopiedSolution">Loading...</span></li>
-                    </ul>
-                </div>
-            </div>
+                    <p><strong>Total values copied to Current Week in selected columns:</strong></p>
+                     <ul id="totalCopiedSelected" class="list-disc list-inside ml-4">
+                        </ul>
+
+                    <p><strong>Total values not copied (Current Week had values) in selected columns:</strong></p>
+                     <ul id="totalNotCopiedSelected" class="list-disc list-inside ml-4">
+                        </ul>
+
+                     <p><strong>Total items missing in Current Week:</strong> <span id="totalMissingInCurrentWeek">Loading...</span></p>
+                     <p><strong>Non-empty values from Last Week (not found in Current Week) in selected columns:</strong></p>
+                     <ul id="totalMissingInCurrentWeekSelected" class="list-disc list-inside ml-4">
+                         </ul>
+                     </div>
+                <p id="matchStatus" class="match-status"></p> </div>
 
             <div class="bg-white p-6 rounded-lg shadow-md mb-8 max-w-3xl mx-auto">
                 <h3 class="text-xl font-semibold mb-4">Visualizations</h3>
                 <div id="analysisVisualizations" class="text-gray-600 text-center py-8">
                     <p>Visualizations (charts, tables) will appear here after processing.</p>
-                    </div>
+                     </div>
             </div>
 
             <div class="text-center mt-10 space-x-4">
@@ -184,6 +222,7 @@
 
         // Function to show a specific page and hide others
         function showPage(pageId) {
+            console.log(`Attempting to show page: ${pageId}`); // Log page change
             pages.forEach(id => {
                 const pageElement = document.getElementById(id);
                 if (pageElement) {
@@ -191,28 +230,48 @@
                         pageElement.classList.add('active');
                         // Ensure display is block when active
                         pageElement.style.display = 'block';
+                        console.log(`Showing page: ${id}`); // Log which page is shown
                     } else {
                         pageElement.classList.remove('active');
                          // Explicitly hide inactive pages
                         pageElement.style.display = 'none';
+                        console.log(`Hiding page: ${id}`); // Log which page is hidden
                     }
                 }
             });
             currentPage = pageId;
 
             // --- Reset Upload Page State on Navigation ---
+            // Only reset file inputs, file names, column selection, and process button state
+            // Do NOT reset processed data arrays (processedReportData, notCopiedRows, lastWeekNotCopiedRows, missingInCurrentWeekRows)
             if (pageId === 'upload-page') {
-                 // Reset file inputs
+                 const lastWeekFileInput = document.getElementById('lastWeekFileInput');
+                 const currentWeekFileInput = document.getElementById('currentWeekFileInput');
+                 const lastWeekFileName = document.getElementById('lastWeekFileName');
+                 const currentWeekFileName = document.getElementById('currentWeekFileName');
+                 const columnSelectionArea = document.getElementById('columnSelectionArea');
+                 const columnCheckboxesDiv = document.getElementById('columnCheckboxes');
+                 const processButton = document.getElementById('processButton');
+                 const uploadMessageBox = document.getElementById('uploadMessageBox');
+                 const exportButton = document.getElementById('exportButton'); // Need to disable export buttons on upload page
+                 const exportNotCopiedButton = document.getElementById('exportNotCopiedButton'); // Need to disable export buttons on upload page
+
+
                  lastWeekFileInput.value = ''; // Clear the selected file
                  currentWeekFileInput.value = ''; // Clear the selected file
 
-                 // Reset file variables
+                 // Reset file variables and selected columns, but NOT processed data arrays
                  lastWeekFile = null;
                  currentWeekFile = null;
+                 selectedColumns = [];
 
-                 // Clear displayed file names
+
+                 // Clear displayed file names and headings/checkboxes
                  lastWeekFileName.textContent = '';
                  currentWeekFileName.textContent = '';
+                 columnSelectionArea.classList.add('hidden');
+                 columnCheckboxesDiv.innerHTML = '';
+
 
                  // Disable and reset process button
                  processButton.disabled = true;
@@ -220,71 +279,51 @@
                  processButton.classList.add('process-button:disabled');
 
                  // Hide any upload messages
-                 hideUploadMessage();
+                 uploadMessageBox.classList.add('hidden');
+
+                 // Disable export buttons when going back to upload
+                 exportButton.disabled = true;
+                 exportNotCopiedButton.disabled = true;
             }
              // --- End Reset Logic ---
         }
 
-        // Initial page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Show the landing page initially
-            showPage('landing-page');
-
-            // The reset logic is now handled within showPage when navigating to 'upload-page'
-        });
-
-
-        // --- Landing Page Logic ---
-        const getStartedButton = document.getElementById('getStartedButton');
-        if (getStartedButton) { // Check if the element exists
-             getStartedButton.addEventListener('click', () => {
-                showPage('upload-page');
-            });
-        }
-
-
-        // --- Upload Page Logic ---
-        const lastWeekDragArea = document.getElementById('lastWeekDragArea');
-        const lastWeekFileInput = document.getElementById('lastWeekFileInput');
-        const lastWeekFileName = document.getElementById('lastWeekFileName');
-
-        const currentWeekDragArea = document.getElementById('currentWeekDragArea');
-        const currentWeekFileInput = document.getElementById('currentWeekFileInput');
-        const currentWeekFileName = document.getElementById('currentWeekFileName');
-
-        const processButton = document.getElementById('processButton');
-        const uploadMessageBox = document.getElementById('uploadMessageBox');
-        const uploadMessageText = document.getElementById('uploadMessageText');
-
-
+        // Variables to store file data and processing results
         let lastWeekFile = null;
         let currentWeekFile = null;
-        let processedReportData = null; // Variable to store processed data
-        let notCopiedRows = []; // Variable to store rows that were not copied
+        // These variables will now persist when navigating back to the upload page
+        let processedReportData = null;
+        let notCopiedRows = [];
+        let lastWeekNotCopiedRows = [];
+        let missingInCurrentWeekRows = [];
+        let selectedColumns = [];
 
 
         // Function to show messages on upload page
         function showUploadMessage(text, type = 'info') {
+            const uploadMessageBox = document.getElementById('uploadMessageBox');
+            const uploadMessageText = document.getElementById('uploadMessageText');
             uploadMessageText.textContent = text;
             uploadMessageBox.classList.remove('hidden', 'error', 'success');
              if (type === 'error') {
                  uploadMessageBox.classList.add('error');
-            } else if (type === 'success') {
+             } else if (type === 'success') {
                  uploadMessageBox.classList.add('success');
-            } else {
+             } else {
                  uploadMessageBox.classList.remove('error', 'success');
-            }
+             }
             uploadMessageBox.classList.remove('hidden');
         }
 
         // Function to hide messages on upload page
         function hideUploadMessage() {
+             const uploadMessageBox = document.getElementById('uploadMessageBox');
             uploadMessageBox.classList.add('hidden');
         }
 
 
         // Function to handle file selection and update UI
-        function handleFileSelect(file, fileNameElement, dragAreaElement) {
+        async function handleFileSelect(file, fileNameElement, dragAreaElement, isLastWeek = false) {
             hideUploadMessage(); // Hide previous messages on new file select
             if (file) {
                 const allowedTypes = ['.csv', '.xls', '.xlsx'];
@@ -294,23 +333,106 @@
                     fileNameElement.textContent = `Invalid file type: ${file.name}. Please upload .csv, .xls, or .xlsx.`;
                     fileNameElement.classList.add('text-red-500');
                     dragAreaElement.classList.remove('dragover');
+                    if (isLastWeek) {
+                         document.getElementById('columnSelectionArea').classList.add('hidden');
+                         document.getElementById('columnCheckboxes').innerHTML = '';
+                         selectedColumns = []; // Clear selections on invalid file
+                    }
                     return null; // Return null for invalid file type
                 }
 
                 fileNameElement.textContent = `Selected file: ${file.name}`;
                 fileNameElement.classList.remove('text-red-500'); // Remove error color if any
                 dragAreaElement.classList.remove('dragover'); // Remove dragover class
-                return file;
+
+                // Read and parse the file to get headers if it's the last week file
+                if (isLastWeek) {
+                    try {
+                        const data = await readFile(file);
+                        const workbook = XLSX.read(data, { type: 'binary' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+
+                        // Use sheet_to_json with header: 1 to get array of arrays
+                        const jsonArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                        const headerRow = jsonArray[0];
+                        const columnCheckboxesDiv = document.getElementById('columnCheckboxes');
+                        columnCheckboxesDiv.innerHTML = ''; // Clear previous checkboxes
+                        selectedColumns = []; // Reset selected columns
+
+                        if (headerRow && headerRow.length > 0) {
+                            headerRow.forEach((header, index) => {
+                                if (header && String(header).trim() !== '') { // Ensure header is not empty or whitespace
+                                     // Create a unique key for the column
+                                     const uniqueColumnKey = `${String(header).trim()}__${index}`;
+
+                                     const checkbox = document.createElement('input');
+                                     checkbox.type = 'checkbox';
+                                     checkbox.id = `col-${uniqueColumnKey}`;
+                                     checkbox.value = uniqueColumnKey; // Store the unique key as the value
+                                     checkbox.classList.add('mr-1'); // Add some margin
+
+                                     const label = document.createElement('label');
+                                     label.htmlFor = `col-${uniqueColumnKey}`;
+                                     // Display the original header text and column index
+                                     label.textContent = `${String(header).trim()} (Column ${index + 1})`;
+                                     label.classList.add('mr-4'); // Add some margin
+
+                                     columnCheckboxesDiv.appendChild(checkbox);
+                                     columnCheckboxesDiv.appendChild(label);
+
+                                     // Add event listener to update selectedColumns array
+                                     checkbox.addEventListener('change', (event) => {
+                                         if (event.target.checked) {
+                                             selectedColumns.push(event.target.value); // Store unique key
+                                         } else {
+                                             selectedColumns = selectedColumns.filter(col => col !== event.target.value);
+                                         }
+                                         console.log("Selected Columns (Unique Keys):", selectedColumns); // Log selected unique keys
+                                         checkFilesAndEnableButton(); // Re-check button state after selection changes
+                                     });
+                                }
+                            });
+                             document.getElementById('columnSelectionArea').classList.remove('hidden');
+                        } else {
+                            columnCheckboxesDiv.innerHTML = '<p>No columns found in file.</p>';
+                             document.getElementById('columnSelectionArea').classList.remove('hidden'); // Still show the area with the message
+                        }
+                         // Return the file after successful header extraction
+                         return file;
+
+                    } catch (error) {
+                        console.error("Error reading or parsing file for headers:", error);
+                        fileNameElement.textContent = `Error reading file: ${error.message || error}`;
+                        fileNameElement.classList.add('text-red-500');
+                        document.getElementById('columnSelectionArea').classList.add('hidden'); // Hide the selection area on error
+                        document.getElementById('columnCheckboxes').innerHTML = ''; // Clear checkboxes on error
+                        selectedColumns = []; // Clear selections on error
+                        return null; // Return null on error
+                    }
+                } else {
+                    // If it's not the last week file, just return the file
+                    return file;
+                }
+
             } else {
                 fileNameElement.textContent = 'No file selected.';
                 fileNameElement.classList.remove('text-red-500');
+                if (isLastWeek) {
+                    document.getElementById('columnSelectionArea').classList.add('hidden'); // Hide selection area on no file
+                    document.getElementById('columnCheckboxes').innerHTML = ''; // Clear checkboxes on no file
+                    selectedColumns = []; // Clear selections on no file
+                }
                 return null;
             }
         }
 
         // Function to check if both files are selected and enable/disable the process button
         function checkFilesAndEnableButton() {
-            if (lastWeekFile && currentWeekFile) {
+            const processButton = document.getElementById('processButton');
+            // Button is enabled only if both files are selected AND at least one column is selected
+            if (lastWeekFile && currentWeekFile && selectedColumns.length > 0) {
                 processButton.disabled = false;
                 processButton.textContent = 'Process Reports'; // Reset text
                 processButton.classList.remove('process-button:disabled'); // Remove disabled styling
@@ -321,19 +443,8 @@
             }
         }
 
-        // Add event listeners for file input changes
-        lastWeekFileInput.addEventListener('change', (event) => {
-            lastWeekFile = handleFileSelect(event.target.files[0], lastWeekFileName, lastWeekDragArea);
-            checkFilesAndEnableButton();
-        });
-
-        currentWeekFileInput.addEventListener('change', (event) => {
-            currentWeekFile = handleFileSelect(event.target.files[0], currentWeekFileName, currentWeekDragArea);
-            checkFilesAndEnableButton();
-        });
-
         // Add event listeners for drag and drop functionality
-        function addDragDropListeners(dragArea, fileInput) {
+        function addDragDropListeners(dragArea, fileInput, isLastWeek = false) {
             dragArea.addEventListener('dragover', (event) => {
                 event.preventDefault();
                 dragArea.classList.add('dragover');
@@ -343,15 +454,19 @@
                 dragArea.classList.remove('dragover');
             });
 
-            dragArea.addEventListener('drop', (event) => {
+            dragArea.addEventListener('drop', async (event) => { // Made async to await handleFileSelect
                 event.preventDefault();
                 dragArea.classList.remove('dragover');
                 const files = event.dataTransfer.files;
                 if (files.length > 0) {
-                    // Simulate file input change
-                    fileInput.files = files;
-                    const changeEvent = new Event('change');
-                    fileInput.dispatchEvent(changeEvent);
+                    const file = files[0];
+                    const fileNameElement = document.getElementById(fileInput.id.replace('FileInput', 'FileName'));
+                    if (isLastWeek) {
+                         lastWeekFile = await handleFileSelect(file, fileNameElement, dragArea, true); // Pass isLastWeek as true
+                    } else {
+                         currentWeekFile = await handleFileSelect(file, fileNameElement, dragArea, false); // Pass isLastWeek as false
+                    }
+                    checkFilesAndEnableButton();
                 }
             });
 
@@ -360,9 +475,6 @@
                 fileInput.click();
             });
         }
-
-        addDragDropListeners(lastWeekDragArea, lastWeekFileInput);
-        addDragDropListeners(currentWeekDragArea, currentWeekFileInput);
 
         // Function to read file using FileReader
         function readFile(file) {
@@ -380,62 +492,49 @@
             });
         }
 
-        // Function to parse file data using SheetJS
+        // Function to parse file data using SheetJS with unique keys
         function parseFile(data, fileName) {
             try {
                 const workbook = XLSX.read(data, { type: 'binary' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
 
-                // Log the raw worksheet object for detailed debugging
-                console.log(`Raw worksheet data from "${fileName}":`, worksheet);
-
-                // Explicitly get data as array of arrays to ensure correct header extraction
+                // Use sheet_to_json with header: 1 to get array of arrays
                 const jsonArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-                // Log the array of arrays structure
-                console.log(`Parsed data from "${fileName}" (array of arrays):`, jsonArray.slice(0, 5)); // Log first 5 rows
-
-                // Assuming the first row of the array of arrays is the header
                 const headerRow = jsonArray[0];
-                const actualColumns = headerRow || []; // Get keys from the first row, default to empty array if no rows
+                const processedData = []; // Array to store rows with unique keys
 
-                 // Log the actual columns found for debugging
-                console.log(`Actual columns found in "${fileName}" (from header row):`, actualColumns);
-
-                // Manually construct array of objects using the detected headers
-                let json = [];
                 if (headerRow && jsonArray.length > 1) {
                     const dataRows = jsonArray.slice(1); // Get data rows (excluding header)
                     dataRows.forEach(row => {
                         const rowObject = {};
                         headerRow.forEach((header, index) => {
-                             // Clean header string (trim whitespace)
-                            const cleanedHeader = String(header || '').trim(); // Ensure header is string and handle null/undefined
-                            rowObject[cleanedHeader] = row[index];
+                             // Create a unique key for the column
+                            const uniqueColumnKey = `${String(header || '').trim()}__${index}`;
+                            rowObject[uniqueColumnKey] = row[index]; // Store value using unique key
+                             // Also store original header text for reference if needed later
+                            rowObject[`${uniqueColumnKey}__originalHeader`] = String(header || '').trim();
                         });
-                        json.push(rowObject);
+                        processedData.push(rowObject);
                     });
                 }
 
+                // Basic check for required columns ('Set A Element', 'Set B Element') based on *header text*
+                // We need to find at least one column with these header texts.
+                const requiredHeaders = ['Set A Element', 'Set B Element'];
+                const foundRequiredHeaders = requiredHeaders.filter(reqHeader =>
+                     headerRow && headerRow.some(h => String(h || '').trim() === reqHeader)
+                );
 
-                 // Log the final parsed JSON structure for debugging
-                console.log(`Final parsed data from "${fileName}" (first 5 rows):`, json.slice(0, 5));
-
-
-                // Basic check for expected columns after parsing
-                const expectedColumns = ['Set A Element', 'Set B Element', 'Comments', 'Solution'];
-
-                // Check if the actualColumns array contains all expected columns
-                const missingColumns = expectedColumns.filter(col => !actualColumns.includes(col));
-
-                if (missingColumns.length > 0) {
-                    // If columns are missing, provide a detailed error
-                    throw new Error(`Missing required columns: ${missingColumns.join(', ')}. Please ensure your file has these columns with exact headers.`);
+                if (foundRequiredHeaders.length !== requiredHeaders.length) {
+                     const missing = requiredHeaders.filter(reqHeader => !foundRequiredHeaders.includes(reqHeader));
+                     throw new Error(`Missing required header text for matching: ${missing.join(', ')}. Please ensure your file has columns with these exact headers.`);
                 }
 
-                // If no data rows were found after parsing, it might indicate an issue
-                 if (json.length === 0 && jsonArray.length > 1) {
+
+                 // If no data rows were found after parsing, it might indicate an issue
+                 if (processedData.length === 0 && jsonArray.length > 1) {
                      console.warn(`File "${fileName}" parsed successfully but resulted in 0 data rows after header extraction.`);
                      // Decide if this should be an error or not based on expected file content
                      // For now, we'll let it pass but log a warning. If you expect data,
@@ -446,7 +545,7 @@
                  }
 
 
-                return json; // Return the data as array of objects
+                return processedData; // Return the data with unique keys
             } catch (error) {
                 console.error("Error parsing file:", fileName, error);
                 // Re-throw the specific error with file name context
@@ -455,177 +554,223 @@
         }
 
         // Core processing logic
-        function processClashReports(lastWeekData, currentWeekData) {
-            let totalNonEmptyLastWeekComments = 0;
-            let totalNonEmptyLastWeekSolution = 0;
-            let totalCopiedComments = 0;
-            let totalCopiedSolution = 0;
-            let totalNotCopiedComments = 0;
-            let totalNotCopiedSolution = 0;
+        function processClashReports(lastWeekData, currentWeekData, columnsToCopyUniqueKeys) {
+            console.log("Starting clash report processing...");
+            console.log("Columns selected for copying (Unique Keys):", columnsToCopyUniqueKeys);
 
-            const rowsNotCopied = []; // Array to store rows where values were not copied
+            // Initialize summary counts - now dynamic based on selected columns
+            const totalNonEmptyLastWeek = {};
+            const totalCopied = {};
+            const totalNotCopied = {}; // Current week had value, last week had value
+            let totalMissingInCurrentWeek = 0; // Count of items in Last Week missing in Current Week
+            const totalMissingInCurrentWeekNonEmpty = {}; // Non-empty values in missing items per selected column
 
-            // Create a map for faster lookup of last week data by key
-            const lastWeekMap = new Map();
-            lastWeekData.forEach(row => {
-                 // Use string conversion in case elements are not strings
-                const key = `${String(row['Set A Element'] || '')}__${String(row['Set B Element'] || '')}`; // Create a unique key
-                lastWeekMap.set(key, row);
-                // Count non-empty comments/solutions in last week
-                if (row['Comments'] && String(row['Comments'] || '').trim() !== '') { // Added || '' for safety
-                    totalNonEmptyLastWeekComments++;
-                }
-                if (row['Solution'] && String(row['Solution'] || '').trim() !== '') { // Added || '' for safety
-                    totalNonEmptyLastWeekSolution++;
-                }
+
+            columnsToCopyUniqueKeys.forEach(key => {
+                totalNonEmptyLastWeek[key] = 0;
+                totalCopied[key] = 0;
+                totalNotCopied[key] = 0;
+                totalMissingInCurrentWeekNonEmpty[key] = 0;
             });
 
-            // Create a copy of current week data to modify
-            // Deep clone to avoid modifying original array from file input
+
+            const rowsNotCopiedCurrentWeek = []; // Array to store rows from Current Week where values were not copied because Current Week had a value
+            const rowsNotCopiedLastWeek = []; // Array to store rows from Last Week where values were not copied because Current Week had a value
+            const rowsMissingInCurrentWeek = []; // Array to store rows from Last Week missing in Current Week
+
+
+            // Create a map for faster lookup of current week data by key ('Set A Element'__Set B Element')
+            const currentWeekMap = new Map();
+             currentWeekData.forEach((row) => {
+                 // Find the unique keys for 'Set A Element' and 'Set B Element' in the current row
+                 const setAKey = Object.keys(row).find(key => row[`${key}__originalHeader`] === 'Set A Element');
+                 const setBKey = Object.keys(row).find(key => row[`${key}__originalHeader`] === 'Set B Element');
+
+                 if (setAKey && setBKey) {
+                    const matchKey = `${String(row[setAKey] || '')}__${String(row[setBKey] || '')}`;
+                    currentWeekMap.set(matchKey, row);
+                 } else {
+                     console.warn("Row in current week is missing 'Set A Element' or 'Set B Element' required for matching:", row);
+                 }
+             });
+
+
+            // Create a copy of current week data to modify (using unique keys)
             const processedCurrentWeekData = JSON.parse(JSON.stringify(currentWeekData));
 
-            // Iterate through current week data and merge
-            processedCurrentWeekData.forEach(currentRow => {
-                 // Use string conversion in case elements are not strings
-                const key = `${String(currentRow['Set A Element'] || '')}__${String(currentRow['Set B Element'] || '')}`; // Corrected typo 'Set B B Element' to 'Set B Element'
-                const lastWeekRow = lastWeekMap.get(key);
-
-                let commentsNotCopied = false;
-                let solutionNotCopied = false;
-
-                if (lastWeekRow) {
-                    // Match found
-
-                    // Check and copy Comments
-                    const currentCommentsEmpty = !currentRow['Comments'] || String(currentRow['Comments'] || '').trim() === ''; // Added || '' for safety
-                    const lastWeekCommentsNotEmpty = lastWeekRow['Comments'] && String(lastWeekRow['Comments'] || '').trim() !== ''; // Added || '' for safety
-
-                    if (currentCommentsEmpty && lastWeekCommentsNotEmpty) {
-                        currentRow['Comments'] = lastWeekRow['Comments'];
-                        totalCopiedComments++;
-                    } else if (!currentCommentsEmpty && lastWeekCommentsNotEmpty) {
-                         // If both have values, and last week had a value, count as not copied because current had value
-                         totalNotCopiedComments++;
-                         commentsNotCopied = true;
-                    }
+            // Keep track of rows already added to not copied lists to avoid duplicates
+            const lastWeekNotCopiedMatchKeys = new Set(); // Use match keys for uniqueness
+            const currentWeekNotCopiedMatchKeys = new Set(); // Use match keys for uniqueness
 
 
-                    // Check and copy Solution
-                    const currentSolutionEmpty = !currentRow['Solution'] || String(currentRow['Solution'] || '').trim() === ''; // Added || '' for safety
-                    const lastWeekSolutionNotEmpty = lastWeekRow['Solution'] && String(lastWeekRow['Solution'] || '').trim() !== ''; // Added || '' for safety
+            // Iterate through last week data and check for matches in current week
+            lastWeekData.forEach((lastWeekRow) => {
+                 // Find the unique keys for 'Set A Element' and 'Set B Element' in the last week row
+                 const setAKeyLastWeek = Object.keys(lastWeekRow).find(key => lastWeekRow[`${key}__originalHeader`] === 'Set A Element');
+                 const setBKeyLastWeek = Object.keys(lastWeekRow).find(key => lastWeekRow[`${key}__originalHeader`] === 'Set B Element');
 
-                     if (currentSolutionEmpty && lastWeekSolutionNotEmpty) {
-                        currentRow['Solution'] = lastWeekRow['Solution'];
-                        totalCopiedSolution++;
-                    } else if (!currentSolutionEmpty && lastWeekSolutionNotEmpty) {
-                         // If both have values, and last week had a value, count as not copied because current had value
-                         totalNotCopiedSolution++;
-                         solutionNotCopied = true;
-                    }
-                }
+                 if (!setAKeyLastWeek || !setBKeyLastWeek) {
+                      console.warn("Row in last week is missing 'Set A Element' or 'Set B Element' required for matching:", lastWeekRow);
+                      return; // Skip this row if matching keys are missing
+                 }
 
-                // If either comments or solution were not copied because current had values, add the row
-                if (commentsNotCopied || solutionNotCopied) {
-                     rowsNotCopied.push(currentRow);
-                }
+                 const matchKey = `${String(lastWeekRow[setAKeyLastWeek] || '')}__${String(lastWeekRow[setBKeyLastWeek] || '')}`;
+                 const currentRow = currentWeekMap.get(matchKey); // Find corresponding row in current week using the map
+
+
+                 // Count non-empty values in last week for selected columns (using unique keys)
+                 columnsToCopyUniqueKeys.forEach(key => {
+                     if (lastWeekRow[key] && String(lastWeekRow[key] || '').trim() !== '') {
+                         totalNonEmptyLastWeek[key]++;
+                     }
+                 });
+
+
+                 if (currentRow) {
+                     // Match found in current week
+
+                     let shouldAddLastWeekRowToNotCopied = false; // Flag for this specific last week row
+
+
+                     // Iterate through selected columns (using unique keys) and perform copy/count
+                     columnsToCopyUniqueKeys.forEach(key => {
+                         const currentValueEmpty = !currentRow[key] || String(currentRow[key] || '').trim() === '';
+                         const lastWeekValueNotEmpty = lastWeekRow[key] && String(lastWeekRow[key] || '').trim() !== '';
+
+                         if (currentValueEmpty && lastWeekValueNotEmpty) {
+                             // Find the actual row in processedCurrentWeekData to modify
+                             const processedRow = processedCurrentWeekData.find(row => {
+                                  const processedSetAKey = Object.keys(row).find(k => row[`${k}__originalHeader`] === 'Set A Element');
+                                  const processedSetBKey = Object.keys(row).find(k => row[`${k}__originalHeader`] === 'Set B Element');
+                                  if (processedSetAKey && processedSetBKey) {
+                                       return `${String(row[processedSetAKey] || '')}__${String(row[processedSetBKey] || '')}` === matchKey;
+                                  }
+                                  return false;
+                             });
+
+                             if (processedRow) {
+                                processedRow[key] = lastWeekRow[key]; // Copy value using unique key
+                                totalCopied[key]++;
+                             } else {
+                                 console.warn(`Could not find processed row for key ${matchKey} to copy column ${key}.`);
+                             }
+                         } else if (!currentValueEmpty && lastWeekValueNotEmpty) {
+                             // Last week had a value, but current week also had a value (not copied)
+                             totalNotCopied[key]++;
+                             // Mark this last week row to be added to the not copied list
+                             shouldAddLastWeekRowToNotCopied = true;
+                         }
+                     });
+
+                     // Add the last week row to the not copied list if marked and not already added
+                     if (shouldAddLastWeekRowToNotCopied && !lastWeekNotCopiedMatchKeys.has(matchKey)) {
+                          rowsNotCopiedLastWeek.push(lastWeekRow);
+                          lastWeekNotCopiedMatchKeys.add(matchKey);
+                     }
+
+
+                 } else {
+                      // No match found in current week - this item is missing in the current week
+                      rowsMissingInCurrentWeek.push(lastWeekRow);
+                      totalMissingInCurrentWeek++;
+                      // Count non-empty values in this missing row for selected columns (using unique keys)
+                      columnsToCopyUniqueKeys.forEach(key => {
+                          if (lastWeekRow[key] && String(lastWeekRow[key] || '').trim() !== '') {
+                              totalMissingInCurrentWeekNonEmpty[key]++;
+                          }
+                      });
+                 }
             });
+
+            // Now iterate through current week data to find items for "Current Week Not Copied" sheet
+            // This sheet should contain items from the Current Week report that had a value
+            // and therefore prevented a copy from Last Week *if* a corresponding item existed
+            // in Last Week with a non-empty value in a *selected* column.
+
+             const lastWeekMapForNotCopied = new Map();
+              lastWeekData.forEach(row => {
+                   const setAKey = Object.keys(row).find(key => row[`${key}__originalHeader`] === 'Set A Element');
+                   const setBKey = Object.keys(row).find(key => row[`${key}__originalHeader`] === 'Set B Element');
+                   if (setAKey && setBKey) {
+                       const matchKey = `${String(row[setAKey] || '')}__${String(row[setBKey] || '')}`;
+                       lastWeekMapForNotCopied.set(matchKey, row);
+                   }
+              });
+
+
+             currentWeekData.forEach((currentRow) => {
+                  const setAKeyCurrent = Object.keys(currentRow).find(key => currentRow[`${key}__originalHeader`] === 'Set A Element');
+                  const setBKeyCurrent = Object.keys(currentRow).find(key => currentRow[`${key}__originalHeader`] === 'Set B Element');
+
+                  if (!setAKeyCurrent || !setBKeyCurrent) {
+                       console.warn("Row in current week is missing 'Set A Element' or 'Set B Element' required for not copied check:", currentRow);
+                       return; // Skip this row
+                  }
+
+                 const matchKey = `${String(currentRow[setAKeyCurrent] || '')}__${String(currentRow[setBKeyCurrent] || '')}`;
+                 const lastWeekRow = lastWeekMapForNotCopied.get(matchKey);
+
+
+                 if (lastWeekRow) {
+                     // Match found in last week
+
+                     let shouldAddCurrentRowToNotCopied = false; // Flag for this specific current week row
+
+                     columnsToCopyUniqueKeys.forEach(key => {
+                         const lastWeekValueNotEmpty = lastWeekRow[key] && String(lastWeekRow[key] || '').trim() !== '';
+                         // Need to find the corresponding key in the current row based on original header text
+                         const originalHeader = lastWeekRow[`${key}__originalHeader`];
+                         const currentKey = Object.keys(currentRow).find(k => currentRow[`${k}__originalHeader`] === originalHeader);
+
+
+                         if (lastWeekValueNotEmpty && currentKey && currentRow[currentKey] && String(currentRow[currentKey] || '').trim() !== '') {
+                             // Last week had a value, and current week also had a value (not copied)
+                             // Mark this current week row to be added to the not copied list
+                             shouldAddCurrentRowToNotCopied = true;
+                         }
+                     });
+
+                     // Add the current week row to the not copied list if marked and not already added
+                     if (shouldAddCurrentRowToNotCopied && !currentWeekNotCopiedMatchKeys.has(matchKey)) {
+                         rowsNotCopiedCurrentWeek.push(currentRow);
+                         currentWeekNotCopiedMatchKeys.add(matchKey);
+                     }
+                 }
+             });
+
+             console.log("Processing complete.");
+              console.log("Summary Counts:", {
+                  totalNonEmptyLastWeek: totalNonEmptyLastWeek,
+                  totalCopied: totalCopied,
+                  totalNotCopied: totalNotCopied, // This represents Current Week items that prevented copy
+                  totalMissingInCurrentWeek: totalMissingInCurrentWeek, // New count
+                  totalMissingInCurrentWeekNonEmpty: totalMissingInCurrentWeekNonEmpty // New counts per column
+              });
+               console.log("Rows Not Copied (Current Week):", rowsNotCopiedCurrentWeek);
+               console.log("Rows Not Copied (Last Week):", rowsNotCopiedLastWeek);
+               console.log("Rows Missing in Current Week:", rowsMissingInCurrentWeek);
+
 
             return {
                 summary: {
-                    totalNonEmptyLastWeek: {
-                        comments: totalNonEmptyLastWeekComments,
-                        solution: totalNonEmptyLastWeekSolution
-                    },
-                    totalCopied: {
-                        comments: totalCopiedComments,
-                        solution: totalCopiedSolution
-                    },
-                    totalNotCopied: {
-                        comments: totalNotCopiedComments,
-                        solution: totalNotCopiedSolution
-                    }
+                    totalNonEmptyLastWeek: totalNonEmptyLastWeek,
+                    totalCopied: totalCopied,
+                    totalNotCopied: totalNotCopied, // This represents Current Week items that prevented copy
+                    totalMissingInCurrentWeek: totalMissingInCurrentWeek, // New count
+                    totalMissingInCurrentWeekNonEmpty: totalMissingInCurrentWeekNonEmpty // New counts per column
                 },
-                processedData: processedCurrentWeekData, // The modified current week data
-                notCopiedRows: rowsNotCopied // The rows that were not copied
+                processedData: processedCurrentWeekData, // The modified current week data (with unique keys)
+                notCopiedRows: rowsNotCopiedCurrentWeek, // Rows from Current Week that prevented copy (using unique keys)
+                lastWeekNotCopiedRows: rowsNotCopiedLastWeek, // Rows from Last Week that were not copied (using unique keys) - Corrected variable name here
+                missingInCurrentWeekRows: rowsMissingInCurrentWeek // Rows from Last Week missing in Current Week (using unique keys)
             };
         }
 
 
-        // Handle Process Button Click
-        processButton.addEventListener('click', async () => {
-            if (!processButton.disabled && lastWeekFile && currentWeekFile) {
-                hideUploadMessage(); // Hide any previous messages
-                processButton.disabled = true; // Disable button during processing
-                processButton.textContent = 'Processing...';
-
-                try {
-                    // Read and parse files
-                    const lastWeekDataRaw = await readFile(lastWeekFile);
-                    const currentWeekDataRaw = await readFile(currentWeekFile);
-
-                    // Added checks for successful parsing
-                    const lastWeekParsed = parseFile(lastWeekDataRaw, lastWeekFile.name);
-                    if (!lastWeekParsed) {
-                         // parseFile would have already shown a message
-                         processButton.disabled = false;
-                         processButton.textContent = 'Process Reports';
-                         return;
-                    }
-
-                    const currentWeekParsed = parseFile(currentWeekDataRaw, currentWeekFile.name);
-                     if (!currentWeekParsed) {
-                         // parseFile would have already shown a message
-                         processButton.disabled = false;
-                         processButton.textContent = 'Process Reports';
-                         return;
-                    }
-
-
-                    // Perform processing
-                    const results = processClashReports(lastWeekParsed, currentWeekParsed);
-
-                    // Store results and processed data in variables
-                    processedReportData = results.processedData; // Store processed data
-                    notCopiedRows = results.notCopiedRows; // Store not copied rows
-
-                    // Update results page UI directly
-                    displayResults(results.summary, currentWeekFile.name);
-
-                    // Navigate to results page
-                    showPage('results-page');
-
-                } catch (error) {
-                    console.error("Processing error:", error);
-                    // Log the full error object for better debugging
-                    console.error(error);
-                    // Display a user-friendly error message including the error details
-                    // Check if the error is a string or has a message property
-                    const errorMessage = typeof error === 'string' ? error : error.message || 'An unknown error occurred.';
-                    showUploadMessage(`Processing failed: ${errorMessage}`, 'error');
-                    processButton.disabled = false;
-                    processButton.textContent = 'Process Reports';
-                }
-            }
-        });
-
-
-        // --- Results Page Logic ---
-        const totalNonEmptyLastWeekCommentsElement = document.getElementById('totalNonEmptyLastWeekComments');
-        const totalNonEmptyLastWeekSolutionElement = document.getElementById('totalNonEmptyLastWeekSolution');
-        const totalCopiedCommentsElement = document.getElementById('totalCopiedComments');
-        const totalCopiedSolutionElement = document.getElementById('totalCopiedSolution');
-        const totalNotCopiedCommentsElement = document.getElementById('totalNotCopiedComments');
-        const totalNotCopiedSolutionElement = document.getElementById('totalNotCopiedSolution');
-
-        const exportButton = document.getElementById('exportButton');
-        const exportNotCopiedButton = document.getElementById('exportNotCopiedButton'); // Get the new button
-        const goBackButton = document.getElementById('goBackButton'); // Get the new go back button
-        const resultsMessageBox = document.getElementById('resultsMessageBox');
-        const resultsMessageText = document.getElementById('resultsMessageText');
-
-
         // Function to show messages on results page
         function showResultsMessage(text, type = 'info') {
+             const resultsMessageBox = document.getElementById('resultsMessageBox');
+             const resultsMessageText = document.getElementById('resultsMessageText');
             resultsMessageText.textContent = text;
             resultsMessageBox.classList.remove('hidden', 'error'); // Only remove error for info/success
             if (type === 'error') {
@@ -638,162 +783,457 @@
 
         // Function to hide messages on results page
         function hideResultsMessage() {
+             const resultsMessageBox = document.getElementById('resultsMessageBox');
             resultsMessageBox.classList.add('hidden');
         }
 
 
         // Function to display results on the results page
-        function displayResults(summary, originalFileName) {
+        function displayResults(summary, originalFileName, selectedColsUniqueKeys) {
              hideResultsMessage(); // Hide any previous messages
 
+             const selectedColumnsSummaryElement = document.getElementById('selectedColumnsSummary');
+             const totalNonEmptyLastWeekSelectedElement = document.getElementById('totalNonEmptyLastWeekSelected');
+             const totalCopiedSelectedElement = document.getElementById('totalCopiedSelected');
+             const totalNotCopiedSelectedElement = document.getElementById('totalNotCopiedSelected');
+             const totalMissingInCurrentWeekElement = document.getElementById('totalMissingInCurrentWeek');
+             const totalMissingInCurrentWeekSelectedElement = document.getElementById('totalMissingInCurrentWeekSelected');
+             const matchStatusElement = document.getElementById('matchStatus');
+
+
+             const exportButton = document.getElementById('exportButton');
+             const exportNotCopiedButton = document.getElementById('exportNotCopiedButton');
+             const visualizationsDiv = document.getElementById('analysisVisualizations');
+
+
             if (summary && processedReportData) {
-                // Update the summary display with separate counts
-                totalNonEmptyLastWeekCommentsElement.textContent = summary.totalNonEmptyLastWeek.comments;
-                totalNonEmptyLastWeekSolutionElement.textContent = summary.totalNonEmptyLastWeek.solution;
-                totalCopiedCommentsElement.textContent = summary.totalCopied.comments;
-                totalCopiedSolutionElement.textContent = summary.totalCopied.solution;
-                totalNotCopiedCommentsElement.textContent = summary.totalNotCopied.comments;
-                totalNotCopiedSolutionElement.textContent = summary.totalNotCopied.solution;
-
-                // Enable the export buttons and add download logic
-                exportButton.disabled = false;
-                exportButton.classList.remove('opacity-50', 'cursor-not-allowed');
-
-                // Enable the new "Download Not Copied Report" button if there are rows to export
-                 if (notCopiedRows.length > 0) {
-                     exportNotCopiedButton.disabled = false;
-                     exportNotCopiedButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                 } else {
-                     exportNotCopiedButton.disabled = true;
-                     exportNotCopiedButton.classList.add('opacity-50', 'cursor-not-allowed');
-                 }
+                // Display selected columns (map unique keys back to user-friendly names)
+                const selectedColumnNames = selectedColsUniqueKeys.map(key => {
+                    // Extract original header and index from the unique key
+                    const parts = key.split('__');
+                    const originalHeader = parts.slice(0, -1).join('__'); // Handle headers with '__'
+                    const index = parts[parts.length - 1];
+                    return `${originalHeader} (Column ${parseInt(index) + 1})`;
+                });
+                selectedColumnsSummaryElement.textContent = selectedColumnNames.length > 0 ? selectedColumnNames.join(', ') : 'None';
 
 
-                // Remove previous event listeners from export buttons to avoid duplicates
-                const oldExportButton = exportButton;
-                const newExportButton = oldExportButton.cloneNode(true);
-                 if (oldExportButton && oldExportButton.parentNode) {
-                    oldExportButton.parentNode.replaceChild(newExportButton, oldExportButton);
-                 } else {
-                     const buttonContainer = document.querySelector('.text-center.mt-10.space-x-4');
-                     if (buttonContainer) {
-                         buttonContainer.appendChild(newExportButton);
-                     } else {
-                         console.error("Could not find button container to append new export button.");
-                     }
-                 }
-                const updatedExportButton = document.getElementById('exportButton'); // Get the new button element
+                // Clear previous lists
+                totalNonEmptyLastWeekSelectedElement.innerHTML = '';
+                totalCopiedSelectedElement.innerHTML = '';
+                totalNotCopiedSelectedElement.innerHTML = '';
+                totalMissingInCurrentWeekSelectedElement.innerHTML = '';
+
+                // Populate lists with counts for selected columns (using unique keys for data, original header for display)
+                selectedColsUniqueKeys.forEach(key => {
+                     const parts = key.split('__');
+                     const originalHeader = parts.slice(0, -1).join('__');
+                     const index = parts[parts.length - 1];
+                     const displayLabel = `${originalHeader} (Column ${parseInt(index) + 1})`;
 
 
-                const oldExportNotCopiedButton = exportNotCopiedButton;
-                const newExportNotCopiedButton = oldExportNotCopiedButton.cloneNode(true);
-                 if (oldExportNotCopiedButton && oldExportNotCopiedButton.parentNode) {
-                    oldExportNotCopiedButton.parentNode.replaceChild(newExportNotCopiedButton, oldExportNotCopiedButton);
-                 } else {
-                     const buttonContainer = document.querySelector('.text-center.mt-10.space-x-4');
-                     if (buttonContainer) {
-                         buttonContainer.appendChild(newExportNotCopiedButton);
-                     } else {
-                         console.error("Could not find button container to append new export not copied button.");
-                     }
-                 }
-                const updatedExportNotCopiedButton = document.getElementById('exportNotCopiedButton'); // Get the new button element
+                    const nonEmptyLi = document.createElement('li');
+                    nonEmptyLi.textContent = `${displayLabel}: ${summary.totalNonEmptyLastWeek[key] || 0}`;
+                    totalNonEmptyLastWeekSelectedElement.appendChild(nonEmptyLi);
 
+                    const copiedLi = document.createElement('li');
+                    copiedLi.textContent = `${displayLabel}: ${summary.totalCopied[key] || 0}`;
+                    totalCopiedSelectedElement.appendChild(copiedLi);
 
-                // Add event listener for the "Download Updated Clash Report" button
-                updatedExportButton.addEventListener('click', () => {
-                    exportData(processedReportData, originalFileName, 'updated');
+                    const notCopiedLi = document.createElement('li');
+                    notCopiedLi.textContent = `${displayLabel}: ${summary.totalNotCopied[key] || 0}`;
+                    totalNotCopiedSelectedElement.appendChild(notCopiedLi);
+
+                    const missingNonEmptyLi = document.createElement('li');
+                    missingNonEmptyLi.textContent = `${displayLabel}: ${summary.totalMissingInCurrentWeekNonEmpty[key] || 0}`;
+                    totalMissingInCurrentWeekSelectedElement.appendChild(missingNonEmptyLi);
                 });
 
-                 // Add event listener for the new "Download Not Copied Report" button
-                 updatedExportNotCopiedButton.addEventListener('click', () => {
-                     exportData(notCopiedRows, originalFileName, 'not_copied');
-                 });
+                // Display total missing items count
+                totalMissingInCurrentWeekElement.textContent = summary.totalMissingInCurrentWeek;
 
 
-                // Add event listener for the Go Back button
-                if (goBackButton) { // Check if the element exists
-                     goBackButton.addEventListener('click', () => {
-                        showPage('upload-page'); // Navigate back to the upload page
-                     });
+                // Calculate sums for validation (only for selected columns using unique keys)
+                let allSelectedColumnsMatch = true;
+
+                selectedColsUniqueKeys.forEach(key => {
+                     const sumForCol = (summary.totalCopied[key] || 0) + (summary.totalNotCopied[key] || 0) + (summary.totalMissingInCurrentWeekNonEmpty[key] || 0);
+                     const totalNonEmptyLastWeekForCol = summary.totalNonEmptyLastWeek[key] || 0;
+
+                     if (sumForCol !== totalNonEmptyLastWeekForCol) {
+                         allSelectedColumnsMatch = false;
+                     }
+                });
+
+
+                // Display match status
+                if (selectedColsUniqueKeys.length > 0) { // Only check if columns were selected
+                    if (allSelectedColumnsMatch) {
+                        matchStatusElement.textContent = "Total counts matched for all selected columns.";
+                        matchStatusElement.classList.remove('not-matched');
+                        matchStatusElement.classList.add('matched');
+                    } else {
+                        matchStatusElement.textContent = "Total counts not matched for one or more selected columns.";
+                        matchStatusElement.classList.remove('matched');
+                        matchStatusElement.classList.add('not-matched');
+                    }
+                } else {
+                     matchStatusElement.textContent = "No columns selected for analysis."; // Show a message if no columns were selected
+                     matchStatusElement.classList.remove('matched', 'not-matched');
                 }
 
 
+                // Enable export buttons if data is available for them
+                exportButton.disabled = !processedReportData || processedReportData.length === 0;
+                // Enable not copied button if either last week not copied, current week not copied, or missing data exists
+                exportNotCopiedButton.disabled = (!lastWeekNotCopiedRows || lastWeekNotCopiedRows.length === 0) && (!notCopiedRows || notCopiedRows.length === 0) && (!missingInCurrentWeekRows || missingInCurrentWeekRows.length === 0);
+
+
+                // You could add code here to generate visualizations based on the summary data
+                visualizationsDiv.innerHTML = `
+                    <p class="text-green-700 font-semibold">Analysis complete!</p>
+                    <p class="text-gray-700">Download the updated report or the report of items not copied.</p>
+                    `;
+
             } else {
-                // Handle cases where results data is not available
-                totalNonEmptyLastWeekCommentsElement.textContent = 'N/A';
-                totalNonEmptyLastWeekSolutionElement.textContent = 'N/A';
-                totalCopiedCommentsElement.textContent = 'N/A';
-                totalCopiedSolutionElement.textContent = 'N/A';
-                totalNotCopiedCommentsElement.textContent = 'N/A';
-                totalNotCopiedSolutionElement.textContent = 'N/A';
-
-                showResultsMessage("No analysis results found. Please go back to the upload page and process your reports.", 'error');
-                 exportButton.disabled = true;
-                 exportButton.classList.add('opacity-50', 'cursor-not-allowed');
-                 exportNotCopiedButton.disabled = true; // Disable new button as well
-                 exportNotCopiedButton.classList.add('opacity-50', 'cursor-not-allowed');
-
-
-                  // Disable go back button if no results to process
-                 if (goBackButton) {
-                     goBackButton.disabled = false; // Still allow going back even if no results
-                 }
+                // Handle case where summary or data is missing after processing
+                showResultsMessage("Analysis results could not be displayed.", 'error');
+                exportButton.disabled = true;
+                exportNotCopiedButton.disabled = true;
+                 matchStatusElement.textContent = ""; // Clear status if no results
+                 matchStatusElement.classList.remove('matched', 'not-matched');
             }
         }
 
-        // Function to export data to a file
-        function exportData(dataToExport, originalFileName, suffix) {
-             if (!dataToExport || dataToExport.length === 0) {
-                 showResultsMessage(`No data to export for the ${suffix.replace('_', ' ')} report.`, 'error');
-                 return;
+        // Function to export data to Excel
+        function exportToExcel(data, sheetName = "Sheet1") {
+            if (!data || data.length === 0) {
+                 console.warn(`No data to export for sheet "${sheetName}".`);
+                return null; // Indicate no sheet was created
             }
+            try {
+                // When converting back to sheet, we need to decide which columns to include
+                // For the updated report, we should include all original columns from the current week,
+                // with the updated values for the selected columns.
+                // For the not copied reports, we can export the original rows.
 
-            // Create a new workbook
-            const wb = XLSX.utils.book_new();
-            // Convert the JSON data to a worksheet
-            const ws = XLSX.utils.json_to_sheet(dataToExport);
-            // Add the worksheet to the workbook
-            const sheetName = suffix === 'updated' ? "Updated Report" : "Not Copied Report";
-            XLSX.utils.book_append_sheet(wb, ws, sheetName); // Sheet name
-
-            // Generate the file and trigger download
-            // Determine file type based on original file name
-            const fileExtension = originalFileName.split('.').pop().toLowerCase();
-            let fileType = 'xlsx'; // Default to xlsx
-            if (fileExtension === 'csv') {
-                fileType = 'csv';
+                // For simplicity in this refactor, we'll export all columns present in the data rows.
+                // A more sophisticated approach would map back to original column order/headers.
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                return worksheet; // Return the created worksheet
+            } catch (error) {
+                console.error(`Error creating sheet "${sheetName}":`, error);
+                // Re-throw or handle error as needed by the calling function
+                throw new Error(`Error creating sheet "${sheetName}": ${error.message || error}`);
             }
-
-            const wbout = XLSX.write(wb, { bookType: fileType, type: 'binary' });
-
-            function s2ab(s) {
-                const buf = new ArrayBuffer(s.length);
-                const view = new Uint8Array(buf);
-                for (let i = 0; i < s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
-                return buf;
-            }
-
-            const blob = new Blob([s2ab(wbout)], { type: `application/octet-stream` });
-
-            // Create a download link
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            // Suggest a download file name
-            const suggestedFileName = originalFileName.replace(`.${fileExtension}`, '') + `_${suffix}.` + fileType;
-            a.download = suggestedFileName;
-            document.body.appendChild(a);
-            a.click();
-
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 0);
         }
+
+        // Function to truncate sheet names to 31 characters
+        function truncateSheetName(name) {
+            const maxLength = 31;
+            if (name.length > maxLength) {
+                return name.substring(0, maxLength);
+            }
+            return name;
+        }
+
+
+        // Wait for the DOM to be fully loaded before attaching event listeners and showing the initial page
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM fully loaded."); // Log DOM loaded
+            console.log("Script inside DOMContentLoaded is running."); // New log
+
+            // Show the landing page initially
+            showPage('landing-page');
+
+            // --- Landing Page Logic ---
+            const getStartedButton = document.getElementById('getStartedButton');
+            if (getStartedButton) { // Check if the element exists
+                 console.log("Get Started button found."); // Log button found
+                 getStartedButton.addEventListener('click', () => {
+                     console.log("Get Started button clicked."); // Log button click
+                     showPage('upload-page');
+                 });
+            } else {
+                console.error("Get Started button not found!"); // Log if button is missing
+            }
+
+            // --- Upload Page Logic ---
+            const lastWeekDragArea = document.getElementById('lastWeekDragArea');
+            const lastWeekFileInput = document.getElementById('lastWeekFileInput');
+            const lastWeekFileName = document.getElementById('lastWeekFileName');
+            const columnSelectionArea = document.getElementById('columnSelectionArea'); // Get the selection area
+            const columnCheckboxesDiv = document.getElementById('columnCheckboxes'); // Get the checkboxes div
+
+
+            const currentWeekDragArea = document.getElementById('currentWeekDragArea');
+            const currentWeekFileInput = document.getElementById('currentWeekFileInput');
+            const currentWeekFileName = document.getElementById('currentWeekFileName');
+
+            const processButton = document.getElementById('processButton');
+            // uploadMessageBox and uploadMessageText are now accessed via functions
+
+
+            // Add event listeners for file input changes
+            lastWeekFileInput.addEventListener('change', async (event) => { // Made async
+                lastWeekFile = await handleFileSelect(event.target.files[0], lastWeekFileName, lastWeekDragArea, true); // Pass isLastWeek as true
+                checkFilesAndEnableButton();
+            });
+
+            currentWeekFileInput.addEventListener('change', async (event) => { // Made async
+                currentWeekFile = await handleFileSelect(event.target.files[0], currentWeekFileName, currentWeekDragArea, false); // Pass isLastWeek as false
+                checkFilesAndEnableButton();
+            });
+
+            // Add event listeners for drag and drop functionality
+            addDragDropListeners(lastWeekDragArea, lastWeekFileInput, true); // Pass isLastWeek as true
+            addDragDropListeners(currentWeekDragArea, currentWeekFileInput, false); // Pass isLastWeek as false
+
+            // Handle Process Button Click
+            processButton.addEventListener('click', async () => {
+                if (!processButton.disabled && lastWeekFile && currentWeekFile && selectedColumns.length > 0) {
+                    hideUploadMessage(); // Hide any previous messages
+                    processButton.disabled = true; // Disable button during processing
+                    processButton.textContent = 'Processing...';
+
+                    try {
+                        // Read and parse files using the new parsing logic
+                        const lastWeekDataParsed = await parseFile(await readFile(lastWeekFile), lastWeekFile.name);
+                         if (!lastWeekDataParsed) {
+                             processButton.disabled = false;
+                             processButton.textContent = 'Process Reports';
+                             return;
+                         }
+
+                        const currentWeekDataParsed = await parseFile(await readFile(currentWeekFile), currentWeekFile.name);
+                         if (!currentWeekDataParsed) {
+                             processButton.disabled = false;
+                             processButton.textContent = 'Process Reports';
+                             return;
+                         }
+
+
+                        // Perform processing with selected columns (unique keys)
+                        const results = processClashReports(lastWeekDataParsed, currentWeekDataParsed, selectedColumns);
+
+                        // Store results and processed data in variables
+                        processedReportData = results.processedData; // Store processed data (with unique keys)
+                        notCopiedRows = results.notCopiedRows; // Store current week not copied rows (with unique keys)
+                        lastWeekNotCopiedRows = results.lastWeekNotCopiedRows; // Store last week not copied rows (with unique keys)
+                        missingInCurrentWeekRows = results.missingInCurrentWeekRows; // Store missing rows (with unique keys)
+
+
+                        // Update results page UI directly
+                        displayResults(results.summary, currentWeekFile.name, selectedColumns); // Pass selected columns (unique keys) to displayResults
+
+                        // Navigate to results page
+                        showPage('results-page');
+
+                    } catch (error) {
+                        console.error("Processing error:", error);
+                        // Log the full error object for better debugging
+                        console.error(error);
+                        // Display a user-friendly error message including the error details
+                        // Check if the error is a string or has a message property
+                        const errorMessage = typeof error === 'string' ? error : error.message || 'An unknown error occurred.';
+                        showUploadMessage(`Processing failed: ${errorMessage}`, 'error');
+                        processButton.disabled = false;
+                        processButton.textContent = 'Process Reports';
+                    }
+                } else if (selectedColumns.length === 0) {
+                     showUploadMessage("Please select at least one column to copy.", 'error');
+                }
+            });
+
+
+            // --- Results Page Logic ---
+            // Elements are now selected within displayResults or accessed via functions
+
+            const exportButton = document.getElementById('exportButton');
+            const exportNotCopiedButton = document.getElementById('exportNotCopiedButton');
+            const goBackButton = document.getElementById('goBackButton');
+            // resultsMessageBox and resultsMessageText are now accessed via functions
+
+
+            // Add event listener for the main export button
+            exportButton.addEventListener('click', () => {
+                if (processedReportData && currentWeekFile) {
+                    // Use the current week file name for the updated report
+                    const fileName = currentWeekFile.name;
+                    try {
+                        // Before exporting the processed data, we need to revert the keys back
+                        // to original headers for the output file to be usable.
+                        const dataForExport = processedReportData.map(row => {
+                             const newRow = {};
+                             Object.keys(row).forEach(key => {
+                                  // Check if it's a unique key (contains __) and has an originalHeader stored
+                                  if (key.includes('__') && row[`${key}__originalHeader`] !== undefined) {
+                                       const originalHeader = row[`${key}__originalHeader`];
+                                       // To handle potential duplicate original headers in the output file,
+                                       // we might need a more sophisticated mapping or just use the unique key
+                                       // as the header in the output for clarity, but for a standard report,
+                                       // mapping back to original headers is usually preferred.
+                                       // If original headers are duplicated, the last one processed will win
+                                       // for that header name in the output row object.
+                                       newRow[originalHeader] = row[key];
+                                  } else {
+                                       // Copy other properties if any (though our parsing currently only adds unique keys and originalHeader keys)
+                                       // This else block might not be strictly necessary with current parsing
+                                       // but is good practice if the row object could contain other data.
+                                       if (!key.endsWith('__originalHeader')) { // Avoid copying the originalHeader keys themselves
+                                            newRow[key] = row[key];
+                                       }
+                                  }
+                             });
+                             return newRow;
+                        });
+
+
+                        const worksheet = exportToExcel(dataForExport, "Updated Report"); // Pass data with original headers
+                        if (worksheet) {
+                            const workbook = XLSX.utils.book_new();
+                            XLSX.utils.book_append_sheet(workbook, worksheet, "Updated Report");
+                            XLSX.writeFile(workbook, fileName);
+                            showResultsMessage(`Successfully exported "${fileName}".`, 'success');
+                        } else {
+                             showResultsMessage(`No processed data available to export to "${fileName}".`, 'error');
+                        }
+                    } catch (error) {
+                         showResultsMessage(`Failed to export "${fileName}": ${error.message || error}`, 'error');
+                    }
+
+                } else {
+                    showResultsMessage("No processed data or current week file available to export.", 'error');
+                }
+            });
+
+            // Add event listener for the "Not Copied" export button
+            exportNotCopiedButton.addEventListener('click', () => {
+                 console.log("Inside exportNotCopiedButton handler, lastWeekNotCopiedRows:", lastWeekNotCopiedRows); // New debugging log
+                 console.log("Inside exportNotCopiedButton handler, lastWeekNotCopiedRows.length:", lastWeekNotCopiedRows ? lastWeekNotCopiedRows.length : 'undefined'); // New debugging log
+
+                if ((lastWeekNotCopiedRows && lastWeekNotCopiedRows.length > 0) || (notCopiedRows && notCopiedRows.length > 0) || (missingInCurrentWeekRows && missingInCurrentWeekRows.length > 0)) {
+                     // Generate a dynamic file name for the not copied report
+                     const date = new Date();
+                     const dateString = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+                     const fileName = `Not_Copied_Clash_Report_${dateString}.xlsx`;
+
+                     const workbook = XLSX.utils.book_new();
+                     let sheetsAdded = 0;
+
+                     try {
+                         // Add Last Week Not Copied sheet if data exists
+                         if (lastWeekNotCopiedRows && lastWeekNotCopiedRows.length > 0 && lastWeekFile) {
+                              console.log(`Attempting to export Last Week Not Copied sheet. Row count: ${lastWeekNotCopiedRows.length}`); // Debugging log
+                             let lastWeekSheetName = lastWeekFile.name.replace(/\.[^/.]+$/, "") || "Last Week Not Copied"; // Use filename without extension or a default
+                             lastWeekSheetName = truncateSheetName(lastWeekSheetName); // Truncate name
+                             // For not copied sheets, export the original rows with original headers
+                             const dataForExport = lastWeekNotCopiedRows.map(row => {
+                                  const newRow = {};
+                                   Object.keys(row).forEach(key => {
+                                       if (key.includes('__') && row[`${key}__originalHeader`] !== undefined) {
+                                            newRow[row[`${key}__originalHeader`]] = row[key];
+                                       } else if (!key.endsWith('__originalHeader')) {
+                                            newRow[key] = row[key];
+                                       }
+                                   });
+                                   return newRow;
+                             });
+                             const lastWeekWorksheet = exportToExcel(dataForExport, lastWeekSheetName); // Pass data with original headers
+                             if (lastWeekWorksheet) {
+                                  console.log(`Successfully created Last Week Not Copied worksheet.`); // Debugging log
+                                 XLSX.utils.book_append_sheet(workbook, lastWeekWorksheet, lastWeekSheetName);
+                                 sheetsAdded++;
+                             } else {
+                                  console.warn(`exportToExcel returned null for Last Week Not Copied sheet.`); // Debugging log
+                             }
+                         } else {
+                              console.log(`Skipping Last Week Not Copied sheet export. No rows found.`); // Debugging log
+                         }
+
+                         // Add Current Week Not Copied sheet if data exists
+                         if (notCopiedRows && notCopiedRows.length > 0 && currentWeekFile) {
+                              console.log(`Attempting to export Current Week Not Copied sheet. Row count: ${notCopiedRows.length}`); // Debugging log
+                              let currentWeekSheetName = currentWeekFile.name.replace(/\.[^/.]+$/, "") || "Current Week Not Copied"; // Use filename without extension or a default
+                              currentWeekSheetName = truncateSheetName(currentWeekSheetName); // Truncate name
+                               // For not copied sheets, export the original rows with original headers
+                               const dataForExport = notCopiedRows.map(row => {
+                                    const newRow = {};
+                                     Object.keys(row).forEach(key => {
+                                         if (key.includes('__') && row[`${key}__originalHeader`] !== undefined) {
+                                              newRow[row[`${key}__originalHeader`]] = row[key];
+                                         } else if (!key.endsWith('__originalHeader')) {
+                                              newRow[key] = row[key];
+                                         }
+                                     });
+                                     return newRow;
+                               });
+                              const currentWeekWorksheet = exportToExcel(dataForExport, currentWeekSheetName); // Pass data with original headers
+                              if (currentWeekWorksheet) {
+                                   console.log(`Successfully created Current Week Not Copied worksheet.`); // Debugging log
+                                  XLSX.utils.book_append_sheet(workbook, currentWeekWorksheet, currentWeekSheetName);
+                                  sheetsAdded++;
+                              } else {
+                                   console.warn(`exportToExcel returned null for Current Week Not Copied sheet.`); // Debugging log
+                              }
+                         } else {
+                              console.log(`Skipping Current Week Not Copied sheet export. No rows found.`); // Debugging log
+                         }
+
+                         // Add Missing in Current Week sheet if data exists
+                         if (missingInCurrentWeekRows && missingInCurrentWeekRows.length > 0 && lastWeekFile) {
+                              console.log(`Attempting to export Missing in Current Week sheet. Row count: ${missingInCurrentWeekRows.length}`); // Debugging log
+                              let missingSheetName = `Missing in ${currentWeekFile.name.replace(/\.[^/.]+$/, "")}` || "Missing in Current Week"; // Name based on Current Week file
+                              missingSheetName = truncateSheetName(missingSheetName); // Truncate name
+                               // For not copied sheets, export the original rows with original headers
+                               const dataForExport = missingInCurrentWeekRows.map(row => {
+                                    const newRow = {};
+                                     Object.keys(row).forEach(key => {
+                                         if (key.includes('__') && row[`${key}__originalHeader`] !== undefined) {
+                                              newRow[row[`${key}__originalHeader`]] = row[key];
+                                         } else if (!key.endsWith('__originalHeader')) {
+                                              newRow[key] = row[key];
+                                         }
+                                     });
+                                     return newRow;
+                               });
+                              const missingWorksheet = exportToExcel(dataForExport, missingSheetName); // Pass data with original headers
+                              if (missingWorksheet) {
+                                   console.log(`Successfully created Missing in Current Week worksheet.`); // Debugging log
+                                  XLSX.utils.book_append_sheet(workbook, missingWorksheet, missingSheetName);
+                                  sheetsAdded++;
+                              } else {
+                                   console.warn(`exportToExcel returned null for Missing in Current Week sheet.`); // Debugging log
+                              }
+                         } else {
+                             console.log(`Skipping Missing in Current Week sheet export. No rows found.`); // Debugging log
+                         }
+
+
+                         if (sheetsAdded > 0) {
+                             XLSX.writeFile(workbook, fileName);
+                             showResultsMessage(`Successfully exported "${fileName}" with ${sheetsAdded} sheet(s).`, 'success');
+                         } else {
+                             showResultsMessage("No data available to export for the 'Not Copied' report.", 'error');
+                         }
+
+                     } catch (error) {
+                          console.error("Error exporting Not Copied report:", error); // More specific error log
+                          showResultsMessage(`Failed to export "${fileName}": ${error.message || error}`, 'error');
+                     }
+
+                } else {
+                     showResultsMessage("No 'not copied' data available to export.", 'error');
+                }
+            });
+
+
+            // Add event listener for the Go Back button
+            goBackButton.addEventListener('click', () => {
+                showPage('upload-page');
+            });
+        });
 
     </script>
-
 </body>
 </html>
